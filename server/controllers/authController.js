@@ -357,20 +357,21 @@ const forgotPassword = async (req, res, next) => {
       return sendError(res, 'No account found with that email address.', 404);
     }
 
-    const tempPassword = 'CS-' + crypto.randomBytes(4).toString('hex').toUpperCase() + crypto.randomInt(100, 999);
+    // Generate a 6-digit numeric code
+    const resetCode = crypto.randomInt(100000, 999999).toString();
+    const resetTokenHash = crypto.createHash('sha256').update(resetCode).digest('hex');
 
-    const emailSubject = 'Your Temporary Password - ConnectServe';
+    const emailSubject = 'Your Password Reset Code - ConnectServe';
     const emailBody = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
-        <h2 style="color: #059669;">Your Account Password Reset</h2>
+        <h2 style="color: #059669;">Password Reset Request</h2>
         <p>Hi <strong>${user.name}</strong>,</p>
-        <p>You requested a password recovery for your ConnectServe account.</p>
-        <p>Your temporary password is:</p>
+        <p>You requested to reset your ConnectServe account password. Use the 6-digit code below to reset it:</p>
         <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; padding: 15px; border-radius: 8px; text-align: center; margin: 20px 0;">
-          <span style="font-size: 24px; font-weight: bold; letter-spacing: 2px; color: #166534;">${tempPassword}</span>
+          <span style="font-size: 28px; font-weight: bold; letter-spacing: 6px; color: #166534;">${resetCode}</span>
         </div>
-        <p>You can now log in using this temporary password and update it anytime in your Profile settings.</p>
-        <p style="color: #64748b; font-size: 12px; margin-top: 25px;">If you did not request this, please log in and change your password in your Profile.</p>
+        <p>This code will expire in <strong>15 minutes</strong>. Enter it along with your new password on the reset screen to complete the process.</p>
+        <p style="color: #64748b; font-size: 12px; margin-top: 25px;">If you did not request this, you can safely ignore this email — your password will remain unchanged.</p>
       </div>
     `;
 
@@ -380,12 +381,11 @@ const forgotPassword = async (req, res, next) => {
       return sendError(res, `Failed to send email: ${emailResult.error || 'Brevo API delivery error'}`, 500);
     }
 
-    user.password = tempPassword;
-    user.resetPasswordToken = null;
-    user.resetPasswordExpire = null;
+    user.resetPasswordToken = resetTokenHash;
+    user.resetPasswordExpire = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
     await user.save();
 
-    return sendSuccess(res, `A temporary password has been sent to ${user.email}. Use it to log in and change it later in your profile.`);
+    return sendSuccess(res, `A 6-digit reset code has been sent to ${user.email}. Enter it below to set a new password.`);
   } catch (error) {
     next(error);
   }

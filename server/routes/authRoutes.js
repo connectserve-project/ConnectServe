@@ -8,6 +8,7 @@ const {
   updatePassword,
   updateEmail,
   forgotPassword,
+  resetPassword,
 } = require('../controllers/authController');
 const { protect } = require('../middleware/authMiddleware');
 const { validate } = require('../middleware/validationMiddleware');
@@ -76,6 +77,17 @@ router.post(
     validate,
   ],
   forgotPassword
+);
+
+router.post(
+  '/reset-password',
+  [
+    body('email').isEmail().withMessage('Please enter a valid email address'),
+    body('resetCode').trim().isLength({ min: 6, max: 6 }).withMessage('Reset code must be 6 digits'),
+    body('newPassword').isLength({ min: 6 }).withMessage('New password must be at least 6 characters'),
+    validate,
+  ],
+  resetPassword
 );
 
 module.exports = router;

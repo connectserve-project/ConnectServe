@@ -19,8 +19,13 @@ export const Login = () => {
 
   // Forgot password modal state
   const [showForgotModal, setShowForgotModal] = useState(false);
+  const [forgotStep, setForgotStep] = useState('email'); // 'email' | 'reset'
   const [forgotEmail, setForgotEmail] = useState('');
   const [isSendingCode, setIsSendingCode] = useState(false);
+  const [resetCode, setResetCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [isResetting, setIsResetting] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -52,15 +57,55 @@ export const Login = () => {
     try {
       const res = await authService.forgotPassword(forgotEmail);
       if (res.success) {
-        toast.success(res.message || 'Temporary password sent to your email!');
-        setIdentifier(forgotEmail);
-        setShowForgotModal(false);
+        toast.success(res.message || '6-digit reset code sent to your email!');
+        setForgotStep('reset');
       }
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to send password.');
+      toast.error(err.response?.data?.message || 'Failed to send reset code.');
     } finally {
       setIsSendingCode(false);
     }
+  };
+
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    if (!resetCode || resetCode.trim().length !== 6) {
+      toast.error('Please enter the 6-digit code sent to your email.');
+      return;
+    }
+    if (!newPassword || newPassword.length < 6) {
+      toast.error('New password must be at least 6 characters.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error('New password and confirm password do not match.');
+      return;
+    }
+    setIsResetting(true);
+    try {
+      const res = await authService.resetPassword({
+        email: forgotEmail,
+        resetCode: resetCode.trim(),
+        newPassword,
+      });
+      if (res.success) {
+        toast.success(res.message || 'Password reset successful! You can now log in.');
+        setIdentifier(forgotEmail);
+        closeForgotModal();
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to reset password.');
+    } finally {
+      setIsResetting(false);
+    }
+  };
+
+  const closeForgotModal = () => {
+    setShowForgotModal(false);
+    setForgotStep('email');
+    setResetCode('');
+    setNewPassword('');
+    setConfirmPassword('');
   };
 
   return (
@@ -108,6 +153,7 @@ export const Login = () => {
                 type="button"
                 onClick={() => {
                   setForgotEmail(identifier.includes('@') ? identifier : '');
+                  setForgotStep('email');
                   setShowForgotModal(true);
                 }}
                 className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline"
@@ -152,39 +198,115 @@ export const Login = () => {
       {/* Forgot Password Modal */}
       <Modal
         isOpen={showForgotModal}
-        onClose={() => setShowForgotModal(false)}
-        title="Forgot Password"
+        onClose={closeForgotModal}
+        title={forgotStep === 'email' ? 'Forgot Password' : 'Reset Your Password'}
         size="md"
       >
-        <form onSubmit={handleSendResetCode} className="space-y-4">
-          <p className="text-xs text-slate-500">
-            Enter your registered email address. We will send a temporary password to your email so you can log in and update your password in Profile.
-          </p>
-          <div>
-            <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-              Registered Email Address
-            </label>
-            <div className="relative">
-              <input
-                type="email"
-                required
-                placeholder="name@example.com"
-                value={forgotEmail}
-                onChange={(e) => setForgotEmail(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 text-xs sm:text-sm rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              />
-              <Mail className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
+        {forgotStep === 'email' ? (
+          <form onSubmit={handleSendResetCode} className="space-y-4">
+            <p className="text-xs text-slate-500">
+              Enter your registered email address. We'll send a 6-digit code so you can set a new password.
+            </p>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                Registered Email Address
+              </label>
+              <div className="relative">
+                <input
+                  type="email"
+                  required
+                  placeholder="name@example.com"
+                  value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 text-xs sm:text-sm rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+                <Mail className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
+              </div>
             </div>
-          </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="ghost" size="sm" onClick={() => setShowForgotModal(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" variant="primary" size="sm" isLoading={isSendingCode}>
-              Send Password To Mail
-            </Button>
-          </div>
-        </form>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="ghost" size="sm" onClick={closeForgotModal}>
+                Cancel
+              </Button>
+              <Button type="submit" variant="primary" size="sm" isLoading={isSendingCode}>
+                Send Reset Code
+              </Button>
+            </div>
+          </form>
+        ) : (
+          <form onSubmit={handleResetPassword} className="space-y-4">
+            <p className="text-xs text-slate-500">
+              Enter the 6-digit code sent to <strong>{forgotEmail}</strong>, then choose a new password.
+            </p>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                6-Digit Code
+              </label>
+              <input
+                type="text"
+                inputMode="numeric"
+                required
+                maxLength={6}
+                placeholder="123456"
+                value={resetCode}
+                onChange={(e) => setResetCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                className="w-full px-4 py-2.5 text-center tracking-[0.5em] text-sm font-bold rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                New Password
+              </label>
+              <div className="relative">
+                <input
+                  type="password"
+                  required
+                  placeholder="••••••••"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 text-xs sm:text-sm rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+                <Lock className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                Confirm New Password
+              </label>
+              <div className="relative">
+                <input
+                  type="password"
+                  required
+                  placeholder="••••••••"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 text-xs sm:text-sm rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+                <Lock className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
+              </div>
+            </div>
+
+            <div className="flex justify-between items-center pt-2">
+              <button
+                type="button"
+                onClick={() => setForgotStep('email')}
+                className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline"
+              >
+                ← Change email / Resend code
+              </button>
+              <div className="flex gap-2">
+                <Button type="button" variant="ghost" size="sm" onClick={closeForgotModal}>
+                  Cancel
+                </Button>
+                <Button type="submit" variant="primary" size="sm" isLoading={isResetting}>
+                  Reset Password
+                </Button>
+              </div>
+            </div>
+          </form>
+        )}
       </Modal>
     </div>
   );

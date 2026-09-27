@@ -2,6 +2,8 @@ const express = require('express');
 const { body } = require('express-validator');
 const {
   register,
+  verifyRegistration,
+  resendVerificationCode,
   login,
   getMe,
   refreshToken,
@@ -29,6 +31,25 @@ router.post(
     validate,
   ],
   register
+);
+
+router.post(
+  '/verify-registration',
+  [
+    body('email').isEmail().withMessage('Please enter a valid email address'),
+    body('code').trim().isLength({ min: 6, max: 6 }).withMessage('Verification code must be 6 digits'),
+    validate,
+  ],
+  verifyRegistration
+);
+
+router.post(
+  '/resend-verification',
+  [
+    body('email').isEmail().withMessage('Please enter a valid email address'),
+    validate,
+  ],
+  resendVerificationCode
 );
 
 router.post(

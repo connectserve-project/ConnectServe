@@ -11,6 +11,16 @@ export const authService = {
     return response.data;
   },
 
+  verifyRegistration: async ({ email, code }) => {
+    const response = await api.post('/auth/verify-registration', { email, code });
+    return response.data;
+  },
+
+  resendVerification: async (email) => {
+    const response = await api.post('/auth/resend-verification', { email });
+    return response.data;
+  },
+
   getMe: async () => {
     const response = await api.get('/auth/me');
     return response.data;

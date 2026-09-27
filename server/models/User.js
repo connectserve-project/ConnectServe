@@ -152,6 +152,18 @@ const User = sequelize.define('User', {
     type: DataTypes.DATE,
     allowNull: true,
   },
+  isEmailVerified: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+  },
+  emailVerifyCode: {
+    type: DataTypes.STRING(255),
+    allowNull: true,
+  },
+  emailVerifyExpire: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
   qrToken: {
     type: DataTypes.STRING(64),
     unique: true,

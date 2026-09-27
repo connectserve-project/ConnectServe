@@ -44,6 +44,8 @@ export const Login = () => {
       } else {
         navigate(from, { replace: true });
       }
+    } else if (result.requiresVerification) {
+      navigate(`/register?verify=1&email=${encodeURIComponent(result.email || identifier)}`);
     }
   };
 
@@ -245,12 +247,13 @@ export const Login = () => {
               <input
                 type="text"
                 inputMode="numeric"
+                autoComplete="one-time-code"
                 required
                 maxLength={6}
                 placeholder="123456"
                 value={resetCode}
                 onChange={(e) => setResetCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                className="w-full px-4 py-2.5 text-center tracking-[0.5em] text-sm font-bold rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="w-full px-4 py-2.5 text-center tracking-[0.5em] text-sm font-bold rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 [-webkit-text-fill-color:currentColor] [-webkit-autofill:0] [transition:background-color_9999s_ease-in-out_0s]"
               />
             </div>
 

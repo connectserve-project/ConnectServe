@@ -72,6 +72,10 @@ const register = async (req, res, next) => {
       }
     }
 
+    // Generate a 6-digit email verification code (prevents bot/fake signups)
+    const verifyCode = crypto.randomInt(100000, 999999).toString();
+    const verifyCodeHash = crypto.createHash('sha256').update(verifyCode).digest('hex');
+
     const user = await User.create({
       name,
       username: generatedUsername,
@@ -95,7 +99,76 @@ const register = async (req, res, next) => {
         category: orgDetails?.category || 'General Community',
         ...(verificationDocument && { verificationDocument }),
       } : {},
+      isEmailVerified: false,
+      emailVerifyCode: verifyCodeHash,
+      emailVerifyExpire: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes
     });
+
+    const verifyEmailSubject = 'Verify Your Email - ConnectServe';
+    const verifyEmailBody = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
+        <h2 style="color: #059669;">Verify Your Email Address</h2>
+        <p>Hi <strong>${user.name}</strong>,</p>
+        <p>Thanks for signing up for ConnectServe! Please confirm it's really you by entering the 6-digit code below:</p>
+        <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; padding: 15px; border-radius: 8px; text-align: center; margin: 20px 0;">
+          <span style="font-size: 28px; font-weight: bold; letter-spacing: 6px; color: #166534;">${verifyCode}</span>
+        </div>
+        <p>This code will expire in <strong>15 minutes</strong>. Enter it on the verification screen to activate your account.</p>
+        <p style="color: #64748b; font-size: 12px; margin-top: 25px;">If you did not create this account, you can safely ignore this email.</p>
+      </div>
+    `;
+
+    try {
+      const emailResult = await sendEmail(user.email, verifyEmailSubject, verifyEmailBody);
+      if (!emailResult.success && !emailResult.simulated) {
+        console.error('[Register] Failed to send verification email:', emailResult.error);
+      }
+    } catch (err) {
+      console.error('[Register] Failed to send verification email:', err.message);
+    }
+
+    return sendSuccess(
+      res,
+      `A 6-digit verification code has been sent to ${user.email}. Please verify to activate your account.`,
+      { email: user.email, requiresVerification: true },
+      null,
+      201
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Verify email with 6-digit code and activate account
+// @route   POST /api/auth/verify-registration
+// @access  Public
+const verifyRegistration = async (req, res, next) => {
+  try {
+    const { email, code } = req.body;
+    if (!email || !code) {
+      return sendError(res, 'Please provide email and the 6-digit code.', 400);
+    }
+
+    const user = await User.findOne({ where: { email: email.trim().toLowerCase() } });
+    if (!user) {
+      return sendError(res, 'No account found with that email address.', 404);
+    }
+
+    if (user.isEmailVerified) {
+      return sendError(res, 'This account is already verified. Please log in.', 400);
+    }
+
+    const codeHash = crypto.createHash('sha256').update(code.trim()).digest('hex');
+    const isExpired = !user.emailVerifyExpire || new Date(user.emailVerifyExpire) < new Date();
+
+    if (!user.emailVerifyCode || user.emailVerifyCode !== codeHash || isExpired) {
+      return sendError(res, 'Invalid or expired verification code.', 400);
+    }
+
+    user.isEmailVerified = true;
+    user.emailVerifyCode = null;
+    user.emailVerifyExpire = null;
+    await user.save();
 
     const { accessToken, refreshToken } = generateTokens(user.id, user.role);
 
@@ -113,13 +186,61 @@ const register = async (req, res, next) => {
       console.error('[Email Service Error] Failed to send welcome email:', err.message);
     }
 
-    return sendSuccess(
-      res,
-      'Registration successful. Welcome to ConnectServe!',
-      { user: userObj, accessToken, refreshToken },
-      null,
-      201
-    );
+    return sendSuccess(res, 'Email verified successfully. Welcome to ConnectServe!', {
+      user: userObj,
+      accessToken,
+      refreshToken,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Resend the 6-digit email verification code
+// @route   POST /api/auth/resend-verification
+// @access  Public
+const resendVerificationCode = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return sendError(res, 'Please provide an email address.', 400);
+    }
+
+    const user = await User.findOne({ where: { email: email.trim().toLowerCase() } });
+    if (!user) {
+      return sendError(res, 'No account found with that email address.', 404);
+    }
+
+    if (user.isEmailVerified) {
+      return sendError(res, 'This account is already verified. Please log in.', 400);
+    }
+
+    const verifyCode = crypto.randomInt(100000, 999999).toString();
+    const verifyCodeHash = crypto.createHash('sha256').update(verifyCode).digest('hex');
+
+    const emailSubject = 'Your New Verification Code - ConnectServe';
+    const emailBody = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
+        <h2 style="color: #059669;">Verify Your Email Address</h2>
+        <p>Hi <strong>${user.name}</strong>,</p>
+        <p>Here is your new 6-digit verification code:</p>
+        <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; padding: 15px; border-radius: 8px; text-align: center; margin: 20px 0;">
+          <span style="font-size: 28px; font-weight: bold; letter-spacing: 6px; color: #166534;">${verifyCode}</span>
+        </div>
+        <p>This code will expire in <strong>15 minutes</strong>.</p>
+      </div>
+    `;
+
+    const emailResult = await sendEmail(user.email, emailSubject, emailBody);
+    if (!emailResult.success && !emailResult.simulated) {
+      return sendError(res, `Failed to send email: ${emailResult.error || 'Brevo API delivery error'}`, 500);
+    }
+
+    user.emailVerifyCode = verifyCodeHash;
+    user.emailVerifyExpire = new Date(Date.now() + 15 * 60 * 1000);
+    await user.save();
+
+    return sendSuccess(res, `A new verification code has been sent to ${user.email}.`);
   } catch (error) {
     next(error);
   }
@@ -164,6 +285,10 @@ const login = async (req, res, next) => {
 
     if (user.isBanned) {
       return sendError(res, 'Your account has been suspended. Please contact support.', 403);
+    }
+
+    if (!user.isEmailVerified) {
+      return sendError(res, 'Please verify your email before logging in. Check your inbox for the 6-digit code.', 403, { requiresVerification: true, email: user.email });
     }
 
     const { accessToken, refreshToken } = generateTokens(user.id, user.role);
@@ -428,6 +553,8 @@ const resetPassword = async (req, res, next) => {
 
 module.exports = {
   register,
+  verifyRegistration,
+  resendVerificationCode,
   login,
   getMe,
   refreshToken,

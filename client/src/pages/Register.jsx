@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { Button } from '../components/common/Button';
 import { EVENT_CATEGORIES } from '../utils/constants';
@@ -28,8 +28,25 @@ const COUNTRY_CODES = [
 ];
 
 export const Register = () => {
-  const { register } = useAuth();
+  const { register, verifyRegistration, resendVerification } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  // 'form' -> fill registration details, 'verify' -> enter 6-digit email code
+  const [step, setStep] = useState('form');
+  const [pendingEmail, setPendingEmail] = useState('');
+  const [pendingRole, setPendingRole] = useState('user');
+  const [verifyCode, setVerifyCode] = useState('');
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [isResending, setIsResending] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get('verify') === '1') {
+      const emailParam = searchParams.get('email') || '';
+      setPendingEmail(emailParam);
+      setStep('verify');
+    }
+  }, [searchParams]);
 
   const [role, setRole] = useState('user');
   const [name, setName] = useState('');
@@ -97,11 +114,100 @@ export const Register = () => {
     const result = await register(baseFields);
     setIsLoading(false);
 
+    if (result.success && result.requiresVerification) {
+      setPendingEmail(result.email || email);
+      setPendingRole(role);
+      setStep('verify');
+    }
+  };
+
+  const handleVerifySubmit = async (e) => {
+    e.preventDefault();
+    if (!verifyCode || verifyCode.trim().length !== 6) {
+      toast.error('Please enter the 6-digit code sent to your email.');
+      return;
+    }
+    setIsVerifying(true);
+    const result = await verifyRegistration({ email: pendingEmail, code: verifyCode.trim() });
+    setIsVerifying(false);
+
     if (result.success) {
-      if (role === 'organization') navigate('/org/dashboard');
+      if (pendingRole === 'organization') navigate('/org/dashboard');
       else navigate('/feed');
     }
   };
+
+  const handleResendCode = async () => {
+    setIsResending(true);
+    await resendVerification(pendingEmail);
+    setIsResending(false);
+  };
+
+  if (step === 'verify') {
+    return (
+      <div className="min-h-[85vh] flex items-center justify-center p-4 animate-fadeIn">
+        <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-10 border border-slate-200 dark:border-slate-800 shadow-xl space-y-6">
+          <div className="text-center space-y-2">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-400 text-white flex items-center justify-center mx-auto shadow-md shadow-emerald-500/20">
+              <Mail className="w-6 h-6" />
+            </div>
+            <h1 className="text-2xl font-black text-slate-900 dark:text-white">Verify Your Email</h1>
+            <p className="text-xs sm:text-sm text-slate-500">
+              Enter the 6-digit code we sent to <strong>{pendingEmail}</strong> to activate your account.
+            </p>
+          </div>
+
+          <form onSubmit={handleVerifySubmit} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
+                6-Digit Verification Code
+              </label>
+              <input
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                required
+                maxLength={6}
+                placeholder="123456"
+                value={verifyCode}
+                onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                className="w-full px-4 py-2.5 text-center tracking-[0.5em] text-sm font-bold rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 [-webkit-text-fill-color:currentColor] [-webkit-autofill:0] [transition:background-color_9999s_ease-in-out_0s]"
+              />
+            </div>
+
+            <Button
+              type="submit"
+              variant="primary"
+              size="lg"
+              className="w-full"
+              isLoading={isVerifying}
+              icon={ArrowRight}
+            >
+              Verify & Activate Account
+            </Button>
+          </form>
+
+          <div className="flex justify-between items-center text-xs pt-2 border-t border-slate-100 dark:border-slate-800">
+            <button
+              type="button"
+              onClick={() => setStep('form')}
+              className="font-bold text-slate-500 hover:underline"
+            >
+              ← Back to form
+            </button>
+            <button
+              type="button"
+              onClick={handleResendCode}
+              disabled={isResending}
+              className="font-bold text-emerald-600 dark:text-emerald-400 hover:underline disabled:opacity-50"
+            >
+              {isResending ? 'Sending...' : 'Resend Code'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-[85vh] flex items-center justify-center p-4 animate-fadeIn">

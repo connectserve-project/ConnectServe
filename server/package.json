@@ -1,0 +1,36 @@
+{
+  "name": "connectserve-server",
+  "version": "1.0.0",
+  "description": "Backend API for ConnectServe - Social Media and Community Service Management System",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "seed": "node utils/seedData.js",
+    "seed:real": "node utils/seedRealData.js"
+  },
+  "dependencies": {
+    "@getbrevo/brevo": "^6.0.3",
+    "bcryptjs": "^2.4.3",
+    "cloudinary": "^2.11.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-validator": "^7.2.1",
+    "helmet": "^8.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongodb": "^7.5.0",
+    "mongodb-memory-server": "^10.1.4",
+    "mongoose": "^8.9.5",
+    "morgan": "^1.10.0",
+    "multer": "^1.4.5-lts.1",
+    "nodemailer": "^9.0.6",
+    "pdfkit": "^0.20.2",
+    "pg": "^8.23.0",
+    "pg-hstore": "^2.3.4",
+    "resend": "^6.24.0",
+    "sequelize": "^6.37.8",
+    "socket.io": "^4.8.1"
+  }
+}

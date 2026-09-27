@@ -212,10 +212,9 @@ const updateProfile = async (req, res, next) => {
       if (user.banner?.public_id) {
         await deleteFromCloudinary(user.banner.public_id);
       }
-      const uploadResult = await uploadToCloudinary(file.buffer, 'connectserve/documents', {
-        resource_type: isPdf ? 'raw' : 'image',
-        transformation: [],
-        format: isPdf ? 'pdf' : undefined,
+      const uploadResult = await uploadToCloudinary(file.buffer, 'connectserve/profiles', {
+        transformation: [{ width: 1200, height: 400, crop: 'fill' }],
+        mimetype: file.mimetype,
       });
       user.banner = {
         url: uploadResult.secure_url,
@@ -232,6 +231,8 @@ const updateProfile = async (req, res, next) => {
       // Check if it is a pdf
       const isPdf = file.mimetype === 'application/pdf';
       const uploadResult = await uploadToCloudinary(file.buffer, 'connectserve/documents', {
+        resource_type: isPdf ? 'raw' : 'image',
+        transformation: [],
         format: isPdf ? 'pdf' : undefined,
       });
       user.orgDetails = {

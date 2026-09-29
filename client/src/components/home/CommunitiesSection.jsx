@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Users, CheckCircle2 } from 'lucide-react';
-import { communities as mockCommunities } from '../../data/homeMockData';
+import { ArrowRight, Users, CheckCircle2, Building2 } from 'lucide-react';
 
 const CommunityCard = ({ community }) => {
   const [joined, setJoined] = useState(false);
@@ -73,8 +72,6 @@ const CommunityCard = ({ community }) => {
 };
 
 export const CommunitiesSection = ({ liveOrganizations = [] }) => {
-  const displayOrgs = liveOrganizations.length > 0 ? liveOrganizations : mockCommunities;
-
   return (
     <section className="space-y-5">
       <div className="flex items-end justify-between gap-2">
@@ -95,11 +92,21 @@ export const CommunitiesSection = ({ liveOrganizations = [] }) => {
         </Link>
       </div>
 
-      <div className="snap-rail gap-4 -mx-1 px-1 pb-1 no-scrollbar">
-        {displayOrgs.map((c) => (
-          <CommunityCard key={c._id || c.id} community={c} />
-        ))}
-      </div>
+      {liveOrganizations.length > 0 ? (
+        <div className="snap-rail gap-4 -mx-1 px-1 pb-1 no-scrollbar">
+          {liveOrganizations.map((c) => (
+            <CommunityCard key={c._id || c.id} community={c} />
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-col items-center justify-center text-center gap-2 py-10 px-6 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800">
+          <Building2 className="w-6 h-6 text-slate-300 dark:text-slate-600" />
+          <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">No verified NGOs yet</p>
+          <p className="text-xs text-slate-400 dark:text-slate-500 max-w-xs">
+            Verified organizations will appear here once Admin approves their accounts.
+          </p>
+        </div>
+      )}
     </section>
   );
 };

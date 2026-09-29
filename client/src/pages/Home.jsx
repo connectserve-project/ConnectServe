@@ -8,7 +8,6 @@ import { FeedSection } from '../components/home/FeedSection';
 import { CommunitiesSection } from '../components/home/CommunitiesSection';
 import { ActivitiesSection } from '../components/home/ActivitiesSection';
 import { ImpactSection } from '../components/home/ImpactSection';
-import { TestimonialsSection } from '../components/home/TestimonialsSection';
 import { FinalCTASection } from '../components/home/FinalCTASection';
 import { useScrollReveal } from '../hooks/useScrollReveal';
 
@@ -97,10 +96,6 @@ export const Home = () => {
 
       <Reveal>
         <ImpactSection liveStats={liveStats} />
-      </Reveal>
-
-      <Reveal>
-        <TestimonialsSection />
       </Reveal>
 
       <Reveal>

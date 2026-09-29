@@ -1,8 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Image, Video, Calendar, HeartHandshake, BarChart3, HelpCircle } from 'lucide-react';
+import { Image, Video, Calendar, HeartHandshake, BarChart3, HelpCircle, Sparkles } from 'lucide-react';
 import { PostCard } from '../posts/PostCard';
-import { feedPosts as mockFeedPosts } from '../../data/homeMockData';
 
 const composerActions = [
   { label: 'Photo', icon: Image, color: 'text-emerald-600' },
@@ -14,8 +13,6 @@ const composerActions = [
 ];
 
 export const FeedSection = ({ livePosts = [] }) => {
-  const displayPosts = livePosts.length > 0 ? livePosts : mockFeedPosts;
-
   return (
     <section className="space-y-5 w-full">
       <h2 className="font-display text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white">
@@ -24,11 +21,21 @@ export const FeedSection = ({ livePosts = [] }) => {
 
 
       {/* Posts */}
-      <div className="space-y-4">
-        {displayPosts.map((post) => (
-          <PostCard key={post._id || post.id} post={post} hideActions />
-        ))}
-      </div>
+      {livePosts.length > 0 ? (
+        <div className="space-y-4">
+          {livePosts.map((post) => (
+            <PostCard key={post._id || post.id} post={post} hideActions />
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-col items-center justify-center text-center gap-2 py-10 px-6 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800">
+          <Sparkles className="w-6 h-6 text-slate-300 dark:text-slate-600" />
+          <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">No community posts yet</p>
+          <p className="text-xs text-slate-400 dark:text-slate-500 max-w-xs">
+            Be the first to share an update, event, or ask for help.
+          </p>
+        </div>
+      )}
 
       <div className="text-center pt-1">
         <Link

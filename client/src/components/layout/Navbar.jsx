@@ -66,16 +66,12 @@ export const Navbar = ({ onOpenCreatePost, onToggleMobileSidebar }) => {
             </button>
 
             <Link to="/" className="flex items-center gap-2 group flex-shrink-0">
-              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-teal-500 via-emerald-500 to-indigo-600 flex items-center justify-center text-white shadow-lg shadow-teal-500/25 group-hover:scale-105 transition-transform flex-shrink-0">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
-                  <circle cx="9" cy="7" r="4"></circle>
-                  <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
-                  <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                  <path d="M19 11l2 2 4-4"></path>
-                </svg>
-              </div>
-              <span className="font-extrabold text-base sm:text-xl tracking-tight bg-gradient-to-r from-teal-600 via-emerald-600 to-indigo-600 dark:from-teal-400 dark:via-emerald-400 dark:to-indigo-400 bg-clip-text text-transparent">
+              <img
+                src="/logo.png"
+                alt="ConnectServe logo"
+                className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl object-cover flex-shrink-0 "
+              />
+              <span className="font-extrabold text-base sm:text-xl tracking-tight bg-gradient-to-r from-teal-600 via-emerald-600 to-indigo-600 dark:from-teal-400 dark:via-emerald-400 dark:to-indigo-400 bg-clip-text text-transparent ">
                 ConnectServe
               </span>
             </Link>
@@ -89,7 +85,7 @@ export const Navbar = ({ onOpenCreatePost, onToggleMobileSidebar }) => {
                 placeholder="Search events, volunteers, causes..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 text-sm rounded-full bg-slate-100 dark:bg-slate-800 border-none focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900 dark:text-slate-100 placeholder-slate-400"
+                className="w-full pl-10 pr-4 py-2 text-sm rounded-full bg-slate-100 dark:bg-slate-800 border border-emerald-600 focus:outline-none focus:border-emerald-800 focus:ring-10 focus:ring-emerald-800/50 text-slate-900 dark:text-slate-100 placeholder-slate-400 transition-colors"
               />
               <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
             </form>
@@ -130,9 +126,8 @@ export const Navbar = ({ onOpenCreatePost, onToggleMobileSidebar }) => {
                 {/* Direct Messages (hide on small mobile since it's on bottom bar) */}
                 <Link
                   to="/chat"
-                  className={`hidden sm:flex relative p-1.5 sm:p-2 rounded-full text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors min-h-[38px] min-w-[38px] items-center justify-center ${
-                    location.pathname === '/chat' ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600' : ''
-                  }`}
+                  className={`hidden sm:flex relative p-1.5 sm:p-2 rounded-full text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors min-h-[38px] min-w-[38px] items-center justify-center ${location.pathname === '/chat' ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600' : ''
+                    }`}
                   aria-label="Messages"
                 >
                   <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -141,9 +136,8 @@ export const Navbar = ({ onOpenCreatePost, onToggleMobileSidebar }) => {
                 {/* Notifications Bell */}
                 <Link
                   to="/notifications"
-                  className={`relative p-1.5 sm:p-2 rounded-full text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors min-h-[38px] min-w-[38px] flex items-center justify-center ${
-                    location.pathname === '/notifications' ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600' : ''
-                  }`}
+                  className={`relative p-1.5 sm:p-2 rounded-full text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors min-h-[38px] min-w-[38px] flex items-center justify-center ${location.pathname === '/notifications' ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600' : ''
+                    }`}
                   aria-label="Notifications"
                 >
                   <Bell className="w-4 h-4 sm:w-5 sm:h-5" />

@@ -10,8 +10,12 @@ export const Footer = () => {
           {/* Brand info */}
           <div className="space-y-3 md:col-span-2">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center text-white font-bold">
-                CS
+              <div className="flex items-center gap-2 group flex-shrink-0">
+                <img
+                  src="/logo.png"
+                  alt="ConnectServe logo"
+                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl object-cover flex-shrink-0 "
+                />
               </div>
               <span className="font-extrabold text-lg text-slate-900 dark:text-white">
                 ConnectServe

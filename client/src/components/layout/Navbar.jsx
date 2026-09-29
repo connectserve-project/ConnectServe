@@ -69,7 +69,7 @@ export const Navbar = ({ onOpenCreatePost, onToggleMobileSidebar }) => {
               <img
                 src="/logo.png"
                 alt="ConnectServe logo"
-                className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl object-cover flex-shrink-0 "
+                className="w-8 h-8 sm:w-8 sm:h-8 rounded-xl object-cover flex-shrink-0 "
               />
               <span className="font-extrabold text-base sm:text-xl tracking-tight bg-gradient-to-r from-teal-600 via-emerald-600 to-indigo-600 dark:from-teal-400 dark:via-emerald-400 dark:to-indigo-400 bg-clip-text text-transparent ">
                 ConnectServe

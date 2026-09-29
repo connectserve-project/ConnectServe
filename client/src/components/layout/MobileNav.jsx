@@ -56,10 +56,12 @@ export const MobileNav = ({
               {/* Header */}
               <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold">
-                    CS
-                  </div>
-                  <span className="font-extrabold text-lg text-slate-900 dark:text-white">
+                  <img
+                    src="/logo.png"
+                    alt="ConnectServe logo"
+                    className="w-8 h-8 sm:w-8 sm:h-8 rounded-xl object-cover flex-shrink-0 "
+                  />
+                  <span className="font-extrabold text-base sm:text-xl tracking-tight bg-gradient-to-r from-teal-600 via-emerald-600 to-indigo-600 dark:from-teal-400 dark:via-emerald-400 dark:to-indigo-400 bg-clip-text text-transparent ">
                     ConnectServe
                   </span>
                 </div>

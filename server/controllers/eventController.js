@@ -1,4 +1,4 @@
-const { Event, EventRegistration, Review, User } = require('../models');
+const { Event, EventRegistration, Review, User, Post } = require('../models');
 const { Op } = require('sequelize');
 const { uploadToCloudinary, deleteFromCloudinary } = require('../config/cloudinary');
 const { sendSuccess, sendError } = require('../utils/responseHandler');
@@ -319,6 +319,8 @@ const deleteEvent = async (req, res, next) => {
       await deleteFromCloudinary(event.banner.public_id);
     }
 
+    // Unlink posts tagged with this event so the delete never hits an FK error
+    await Post.update({ eventTagId: null }, { where: { eventTagId: event.id } });
     await EventRegistration.destroy({ where: { eventId: event.id } });
     await Review.destroy({ where: { eventId: event.id } });
     await event.destroy();

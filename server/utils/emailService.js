@@ -1,52 +1,74 @@
+const { google } = require('googleapis');
+const MailComposer = require('nodemailer/lib/mail-composer');
+
+// Lazily-created Gmail client (reused across calls)
+let gmailClient = null;
+const getGmailClient = () => {
+  if (gmailClient) return gmailClient;
+  const { GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REFRESH_TOKEN } = process.env;
+  if (!GMAIL_CLIENT_ID || !GMAIL_CLIENT_SECRET || !GMAIL_REFRESH_TOKEN) return null;
+
+  const oAuth2Client = new google.auth.OAuth2(
+    GMAIL_CLIENT_ID,
+    GMAIL_CLIENT_SECRET,
+    'https://developers.google.com/oauthplayground'
+  );
+  oAuth2Client.setCredentials({ refresh_token: GMAIL_REFRESH_TOKEN });
+  gmailClient = google.gmail({ version: 'v1', auth: oAuth2Client });
+  return gmailClient;
+};
+
 /**
- * Sends an email notification using Brevo API v3
+ * Sends an email using the Gmail API (OAuth2)
  * @param {string} to - Recipient email
  * @param {string} subject - Email subject
  * @param {string} htmlContent - HTML formatted email body
- * @param {Array} attachments - Optional array of attachments (base64)
+ * @param {Array} attachments - Optional [{ name, content (base64) }]
  */
 const sendEmail = async (to, subject, htmlContent, attachments = []) => {
   try {
-    const apiKey = process.env.BREVO_API_KEY;
-    const fromAddress = process.env.BREVO_FROM || process.env.SMTP_FROM || 'noreply@connectserve.in';
-
-    if (!apiKey) {
-      console.warn('[Email Service Warning] BREVO_API_KEY is not set in environment variables.');
-      return { success: false, error: 'BREVO_API_KEY missing' };
+    const gmail = getGmailClient();
+    if (!gmail) {
+      console.warn('[Email Service Warning] Gmail OAuth env vars are not set.');
+      return { success: false, error: 'GMAIL_CLIENT_ID / GMAIL_CLIENT_SECRET / GMAIL_REFRESH_TOKEN missing' };
     }
 
-    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
-      method: 'POST',
-      headers: {
-        'accept': 'application/json',
-        'api-key': apiKey,
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        sender: {
-          name: 'ConnectServe Community',
-          email: fromAddress,
-        },
-        to: [{ email: to }],
-        subject,
-        htmlContent,
-        ...(attachments && attachments.length ? { attachment: attachments } : {}),
-      }),
+    const senderEmail = process.env.GMAIL_USER;
+    const fromAddress = process.env.GMAIL_FROM || senderEmail;
+
+    // MailComposer builds a correct RFC 2822 message (UTF-8 subject/emoji, HTML, attachments)
+    const mail = new MailComposer({
+      from: `"ConnectServe Community" <${fromAddress}>`,
+      to,
+      subject,
+      html: htmlContent,
+      attachments: (attachments || []).map((a) => ({
+        filename: a.name,
+        content: a.content,
+        encoding: 'base64',
+      })),
     });
 
-    const data = await response.json();
+    const message = await mail.compile().build(); // Buffer
+    const raw = message
+      .toString('base64')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, ''); // base64url
 
-    if (!response.ok) {
-      const errorMsg = data.message || data.code || `Brevo API error ${response.status}`;
-      console.error('[Email Service Error]', errorMsg);
-      return { success: false, error: errorMsg };
-    }
+    const res = await gmail.users.messages.send({
+      userId: 'me',
+      requestBody: { raw },
+    });
 
-    console.log(`[Email Service] Message sent successfully via Brevo API. ID: ${data.messageId}`);
-    return { success: true, messageId: data.messageId };
+    console.log(`[Email Service] Message sent successfully via Gmail API. ID: ${res.data.id}`);
+    return { success: true, messageId: res.data.id };
   } catch (error) {
-    console.error('[Email Service Error]', error.message);
-    return { success: false, error: error.message };
+    const errorMsg = error?.response?.data?.error_description
+      || error?.response?.data?.error?.message
+      || error.message;
+    console.error('[Email Service Error]', errorMsg);
+    return { success: false, error: errorMsg };
   }
 };
 

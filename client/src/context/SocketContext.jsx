@@ -31,6 +31,9 @@ export const SocketProvider = ({ children }) => {
     const newSocket = io(socketUrl, {
       query: { userId: user._id },
       transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1000,
     });
 
     setSocket(newSocket);
@@ -55,6 +58,8 @@ export const SocketProvider = ({ children }) => {
 
     // Direct message alert
     newSocket.on('direct_message_alert', ({ sender, message }) => {
+      // No popup while the user is already looking at the chat page
+      if (window.location.pathname === '/chat') return;
       toast((t) => (
         <div className="flex items-start space-x-2">
           <span className="text-xl">💬</span>

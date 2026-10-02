@@ -220,12 +220,12 @@ export const Feed = ({ onOpenCreatePost }) => {
 
       {/* Right Sidebar Widgets */}
       <aside className="hidden lg:block lg:col-span-4 space-y-6">
-        {/* Recommended Upcoming Drives */}
+        {/* Recommended Upcoming Events */}
         <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200 dark:border-slate-800 shadow-card space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-1.5">
               <Calendar className="w-4 h-4 text-emerald-600" />
-              Upcoming Drives
+              Upcoming Events
             </h3>
             <Link
               to="/events"

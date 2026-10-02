@@ -119,7 +119,7 @@ export const Sidebar = ({ onOpenCreatePost, className = '' }) => {
         {isAuthenticated && isAdmin && (
           <NavLink to="/admin" className={navLinkClass}>
             <Shield className="w-5 h-5 text-purple-500" />
-            <span>Admin Center</span>
+            <span>Admin Pannel</span>
           </NavLink>
         )}
 

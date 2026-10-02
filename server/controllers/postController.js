@@ -391,7 +391,7 @@ const deletePost = async (req, res, next) => {
 
     // Delete image from Cloudinary if exists
     if (post.media?.public_id) {
-      await deleteFromCloudinary(post.media.public_id);
+      try { await deleteFromCloudinary(post.media.public_id); } catch (e) { console.error('[Cloudinary] cleanup failed:', e.message); }
     }
 
     // Delete comments

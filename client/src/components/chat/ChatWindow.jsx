@@ -23,10 +23,13 @@ export const ChatWindow = ({
   const [isSending, setIsSending] = useState(false);
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
+  const typingHideRef = useRef(null);
 
   const otherParticipant = conversation?.participants?.find(
-    p => p._id !== currentUserId
+    p => String(p._id ?? p.id) !== String(currentUserId)
   );
+  const otherIdRef = useRef(null);
+  otherIdRef.current = otherParticipant?._id ?? otherParticipant?.id ?? null;
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -52,35 +55,48 @@ export const ChatWindow = ({
 
     fetchMessages();
 
-    if (socket) {
-      socket.emit('join_conversation', conversation._id);
+    if (!socket) return;
 
-      socket.on('new_message', (newMsg) => {
-        if (newMsg.conversation === conversation._id) {
-          setMessages(prev => [...prev, newMsg]);
-        }
-      });
+    const convId = String(conversation._id);
+    const joinRoom = () => socket.emit('join_conversation', conversation._id);
 
-      socket.on('user_typing', ({ conversationId }) => {
-        if (conversationId === conversation._id) {
-          setIsTyping(true);
-        }
-      });
+    // Join now, and re-join after any reconnect (rooms are lost when the socket drops)
+    joinRoom();
+    socket.on('connect', joinRoom);
 
-      socket.on('user_stop_typing', ({ conversationId }) => {
-        if (conversationId === conversation._id) {
-          setIsTyping(false);
-        }
+    const onNewMessage = (newMsg) => {
+      const msgConvId = String(newMsg.conversationId ?? newMsg.conversation ?? '');
+      if (msgConvId !== convId) return;
+      setIsTyping(false);
+      setMessages((prev) => {
+        const id = String(newMsg._id ?? newMsg.id);
+        if (prev.some((m) => String(m._id ?? m.id) === id)) return prev; // de-dupe
+        return [...prev, newMsg];
       });
-    }
+    };
+    const onTyping = ({ conversationId }) => {
+      if (String(conversationId) !== convId) return;
+      setIsTyping(true);
+      // Safety net: hide indicator if the stop event is ever missed
+      if (typingHideRef.current) clearTimeout(typingHideRef.current);
+      typingHideRef.current = setTimeout(() => setIsTyping(false), 3500);
+    };
+    const onStopTyping = ({ conversationId }) => {
+      if (String(conversationId) === convId) setIsTyping(false);
+    };
+
+    socket.on('new_message', onNewMessage);
+    socket.on('user_typing', onTyping);
+    socket.on('user_stop_typing', onStopTyping);
 
     return () => {
-      if (socket) {
-        socket.emit('leave_conversation', conversation._id);
-        socket.off('new_message');
-        socket.off('user_typing');
-        socket.off('user_stop_typing');
-      }
+      socket.emit('leave_conversation', conversation._id);
+      socket.off('connect', joinRoom);
+      socket.off('new_message', onNewMessage);
+      socket.off('user_typing', onTyping);
+      socket.off('user_stop_typing', onStopTyping);
+      if (typingHideRef.current) clearTimeout(typingHideRef.current);
+      setIsTyping(false);
     };
   }, [conversation?._id, socket]);
 
@@ -91,10 +107,10 @@ export const ChatWindow = ({
   const handleInputChange = (e) => {
     setInputText(e.target.value);
     if (socket && conversation?._id) {
-      socket.emit('typing', { conversationId: conversation._id });
+      socket.emit('typing', { conversationId: conversation._id, recipientId: otherIdRef.current });
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
       typingTimeoutRef.current = setTimeout(() => {
-        socket.emit('stop_typing', { conversationId: conversation._id });
+        socket.emit('stop_typing', { conversationId: conversation._id, recipientId: otherIdRef.current });
       }, 1500);
     }
   };
@@ -126,6 +142,7 @@ export const ChatWindow = ({
 
       const res = await chatService.sendMessage(conversation._id, formData);
       if (res.success) {
+        if (socket) socket.emit('stop_typing', { conversationId: conversation._id, recipientId: otherIdRef.current });
         setInputText('');
         handleRemoveImage();
       }
@@ -190,9 +207,9 @@ export const ChatWindow = ({
         ) : (
           messages.map((msg) => (
             <MessageItem
-              key={msg._id}
+              key={msg._id ?? msg.id}
               message={msg}
-              isMe={msg.sender?._id === currentUserId || msg.sender === currentUserId}
+              isMe={String(msg.sender?._id ?? msg.sender?.id ?? msg.sender ?? msg.senderId) === String(currentUserId)}
             />
           ))
         )}

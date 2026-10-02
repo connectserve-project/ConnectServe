@@ -41,7 +41,11 @@ export const Login = () => {
     if (result.success) {
       if (result.user?.role === 'admin') {
         navigate('/admin', { replace: true });
-      } else {
+      } 
+      else if (result.user?.role === 'organization') {
+           navigate('/org/dashboard', { replace: true }); 
+      } 
+      else {
         navigate(from, { replace: true });
       }
     } else if (result.requiresVerification) {

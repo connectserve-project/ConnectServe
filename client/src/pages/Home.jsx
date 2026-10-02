@@ -31,7 +31,7 @@ export const Home = () => {
       try {
         const [eventsRes, postsRes, orgsRes, statsRes] = await Promise.allSettled([
           eventService.getEvents({ limit: 6, sortBy: 'date_asc' }),
-          postService.getExplore({ limit: 6 }),
+          postService.getExplore({ limit: 3 }),
           userService.searchUsers({ role: 'organization', limit: 8 }),
           eventService.getPublicStats(),
         ]);

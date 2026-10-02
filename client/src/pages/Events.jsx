@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
 import { eventService } from '../services/eventService';
 import { EventCard } from '../components/events/EventCard';
 import { EventFilter } from '../components/events/EventFilter';
 import { EventCardSkeleton } from '../components/common/Skeleton';
-import { Calendar, Sparkles } from 'lucide-react';
+import { Calendar, Sparkles, PlusCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export const Events = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const { isAdmin, isOrganization } = useAuth();
+  const canCreateEvent = isAdmin;
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -58,6 +61,15 @@ export const Events = () => {
             Discover Events, sign up to earn verified hours, and help causes you care about.
           </p>
         </div>
+        {canCreateEvent && (
+          <Link
+            to="/org/create-event"
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold shadow-sm transition-colors self-start sm:self-auto flex-shrink-0"
+          >
+            <PlusCircle className="w-4 h-4" />
+            Create Event
+          </Link>
+        )}
       </div>
 
       {/* Filter Component */}
@@ -92,7 +104,11 @@ export const Events = () => {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {events.map((evt) => (
-            <EventCard key={evt._id} event={evt} />
+            <EventCard
+              key={evt._id}
+              event={evt}
+              onDeleted={(id) => setEvents((prev) => prev.filter((e) => e._id !== id))}
+            />
           ))}
         </div>
       )}

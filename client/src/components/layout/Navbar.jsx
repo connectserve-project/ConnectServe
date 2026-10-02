@@ -65,7 +65,7 @@ export const Navbar = ({ onOpenCreatePost, onToggleMobileSidebar }) => {
               <Menu className="w-5 h-5 sm:w-6 sm:h-6" />
             </button>
 
-            <Link to="/" className="flex items-center gap-2 group flex-shrink-0">
+            <Link to={isAdmin ? '/admin' : isOrganization ? '/org/dashboard' : '/'} className="flex items-center gap-2 group flex-shrink-0">
               <img
                 src="/logo.png"
                 alt="ConnectServe logo"
@@ -176,15 +176,6 @@ export const Navbar = ({ onOpenCreatePost, onToggleMobileSidebar }) => {
 
                       {/* Dropdown Links */}
                       <div className="py-1">
-                        <Link
-                          to={`/profile/${user.username || user._id}`}
-                          onClick={() => setDropdownOpen(false)}
-                          className="flex items-center gap-2.5 px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                        >
-                          <UserIcon className="w-4 h-4 text-slate-400" />
-                          <span>My Profile</span>
-                        </Link>
-
                         {user.role === 'user' && (
                           <Link
                             to="/certificates"
@@ -217,7 +208,7 @@ export const Navbar = ({ onOpenCreatePost, onToggleMobileSidebar }) => {
                             <span>Admin Center</span>
                           </Link>
                         )}
-
+                        
                         <Link
                           to="/events"
                           onClick={() => setDropdownOpen(false)}
@@ -226,6 +217,16 @@ export const Navbar = ({ onOpenCreatePost, onToggleMobileSidebar }) => {
                           <Calendar className="w-4 h-4 text-blue-500" />
                           <span>Browse Events</span>
                         </Link>
+
+                        <Link
+                          to={`/profile/${user.username || user._id}`}
+                          onClick={() => setDropdownOpen(false)}
+                          className="flex items-center gap-2.5 px-4 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                        >
+                          <UserIcon className="w-4 h-4 text-slate-400" />
+                          <span>My Profile</span>
+                        </Link>
+
                       </div>
 
                       {/* Logout */}

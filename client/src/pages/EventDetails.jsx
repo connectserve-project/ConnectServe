@@ -23,6 +23,7 @@ import {
   ShieldCheck,
   ArrowLeft,
   AlertCircle,
+  Trash2,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -126,6 +127,20 @@ export const EventDetails = () => {
 
   const slotsRemaining = Math.max(0, (event.volunteerSlots || 0) - (event.registeredCount || 0));
   const isOrganizer = user && event.organizer?._id === user._id;
+  const isAdminUser = user?.role === 'admin';
+
+  const handleAdminDeleteEvent = async () => {
+    if (!window.confirm(`Delete event "${event.title}"? This removes all its registrations and cannot be undone.`)) return;
+    try {
+      const res = await eventService.deleteEvent(event._id);
+      if (res.success) {
+        toast.success('Event deleted.');
+        navigate('/events');
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to delete event.');
+    }
+  };
 
   return (
     <div className="space-y-8 animate-fadeIn max-w-5xl mx-auto pb-12">
@@ -307,22 +322,6 @@ export const EventDetails = () => {
               ))}
             </div>
           </div>
-
-          {/* Event Posts Section */}
-          <div className="bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-card space-y-6">
-            <h3 className="font-bold text-base text-slate-900 dark:text-white">
-              Event Posts
-            </h3>
-            {posts.length > 0 ? (
-              <div className="space-y-4">
-                {posts.map((post) => (
-                  <PostCard key={post.id || post._id} post={post} onUpdate={fetchEventData} />
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-slate-500">No posts about this event yet. Be the first to share your experience!</p>
-            )}
-          </div>
         </div>
 
         {/* Right Action & Organizer Card */}
@@ -380,6 +379,17 @@ export const EventDetails = () => {
               >
                 Apply to Volunteer
               </Button>
+            )}
+
+            {isAdminUser && (
+              <button
+                type="button"
+                onClick={handleAdminDeleteEvent}
+                className="w-full inline-flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/30 hover:bg-rose-100 dark:hover:bg-rose-950/60 transition-colors"
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete Event (Admin)
+              </button>
             )}
 
             <div className="pt-2 text-xs text-slate-500 space-y-1">

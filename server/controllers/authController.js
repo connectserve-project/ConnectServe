@@ -233,7 +233,7 @@ const resendVerificationCode = async (req, res, next) => {
 
     const emailResult = await sendEmail(user.email, emailSubject, emailBody);
     if (!emailResult.success && !emailResult.simulated) {
-      return sendError(res, `Failed to send email: ${emailResult.error || 'Brevo API delivery error'}`, 500);
+      return sendError(res, `Failed to send email: ${emailResult.error || 'Email delivery error'}`, 500);
     }
 
     user.emailVerifyCode = verifyCodeHash;
@@ -503,7 +503,7 @@ const forgotPassword = async (req, res, next) => {
     const emailResult = await sendEmail(user.email, emailSubject, emailBody);
 
     if (!emailResult.success && !emailResult.simulated) {
-      return sendError(res, `Failed to send email: ${emailResult.error || 'Brevo API delivery error'}`, 500);
+      return sendError(res, `Failed to send email: ${emailResult.error || 'Email delivery error'}`, 500);
     }
 
     user.resetPasswordToken = resetTokenHash;

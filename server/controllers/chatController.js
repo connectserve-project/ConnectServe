@@ -207,11 +207,25 @@ const sendMessage = async (req, res, next) => {
     // Emit live message to Socket.IO room
     const io = req.app.get('io');
     if (io) {
-      io.to(`conversation:${conversation.id}`).emit('new_message', populatedMessage);
+      const livePayload = { ...populatedMessage.toJSON(), conversation: conversation.id };
+      // Deliver to the conversation room plus both users' personal rooms.
+      // Passing an array makes Socket.IO send once per socket (no duplicates),
+      // so the message arrives in real time even if a room join was missed.
+      io.to([
+        `conversation:${conversation.id}`,
+        `user:${userId}`,
+        `user:${otherParticipantId}`,
+      ]).emit('new_message', livePayload);
       io.to(`user:${otherParticipantId}`).emit('direct_message_alert', {
         conversationId: conversation.id,
-        sender: req.user,
-        message: populatedMessage,
+        sender: {
+          _id: req.user.id,
+          id: req.user.id,
+          name: req.user.name,
+          username: req.user.username,
+          avatar: req.user.avatar,
+        },
+        message: livePayload,
       });
     }
 

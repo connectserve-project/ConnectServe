@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSocket } from '../hooks/useSocket';
 import { useAuth } from '../hooks/useAuth';
 import { chatService } from '../services/chatService';
 import { adminService } from '../services/adminService';
@@ -10,6 +11,7 @@ import toast from 'react-hot-toast';
 
 export const ChatPage = () => {
   const { user } = useAuth();
+  const { socket } = useSocket();
   const isAdmin = user?.role === 'admin';
   const [conversations, setConversations] = useState([]);
   const [directoryUsers, setDirectoryUsers] = useState([]);
@@ -36,6 +38,27 @@ export const ChatPage = () => {
       setLoading(false);
     }
   };
+
+  // Keep the conversation list (last message / ordering) live
+  useEffect(() => {
+    if (!socket) return;
+    const onNewMessage = (msg) => {
+      const convId = String(msg.conversationId ?? msg.conversation ?? '');
+      let found = false;
+      setConversations((prev) => {
+        const updated = prev.map((c) => {
+          if (String(c._id ?? c.id) !== convId) return c;
+          found = true;
+          return { ...c, lastMessageText: msg.text, lastMessageAt: msg.createdAt || new Date().toISOString() };
+        });
+        return updated.sort((a, b) => new Date(b.lastMessageAt || 0) - new Date(a.lastMessageAt || 0));
+      });
+      // Message in a brand-new conversation: reload the list
+      setTimeout(() => { if (!found) fetchConversations(); }, 0);
+    };
+    socket.on('new_message', onNewMessage);
+    return () => socket.off('new_message', onNewMessage);
+  }, [socket]);
 
   // Admins get every NGO/organization and volunteer listed by default,
   // so they can start a direct message with anyone without hunting them down.

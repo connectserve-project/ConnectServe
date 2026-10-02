@@ -137,13 +137,19 @@ io.on('connection', (socket) => {
     socket.leave(`conversation:${conversationId}`);
   });
 
-  // Typing indicators
-  socket.on('typing', ({ conversationId, user }) => {
-    socket.to(`conversation:${conversationId}`).emit('user_typing', { user, conversationId });
+  // Typing indicators.
+  // Relayed to the conversation room AND the recipient's personal room, so it
+  // still works even if the recipient's socket has not joined the room yet.
+  socket.on('typing', ({ conversationId, recipientId, user }) => {
+    const rooms = [`conversation:${conversationId}`];
+    if (recipientId) rooms.push(`user:${recipientId}`);
+    socket.to(rooms).emit('user_typing', { user, conversationId: String(conversationId) });
   });
 
-  socket.on('stop_typing', ({ conversationId }) => {
-    socket.to(`conversation:${conversationId}`).emit('user_stop_typing', { conversationId });
+  socket.on('stop_typing', ({ conversationId, recipientId }) => {
+    const rooms = [`conversation:${conversationId}`];
+    if (recipientId) rooms.push(`user:${recipientId}`);
+    socket.to(rooms).emit('user_stop_typing', { conversationId: String(conversationId) });
   });
 
   socket.on('disconnect', () => {

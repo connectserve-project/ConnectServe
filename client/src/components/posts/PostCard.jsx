@@ -31,6 +31,7 @@ export const PostCard = ({ post, onPostDeleted, hideActions = false }) => {
 
   const isLiked = user ? likes.some(id => (typeof id === 'object' ? id._id === user._id : id === user._id)) : false;
   const isAuthor = user && post.author?._id === user._id;
+  const [deleted, setDeleted] = useState(false);
 
   const handleLike = async () => {
     if (!isAuthenticated) {
@@ -64,13 +65,15 @@ export const PostCard = ({ post, onPostDeleted, hideActions = false }) => {
   const handleDelete = async () => {
     if (window.confirm('Are you sure you want to delete this post?')) {
       try {
-        const res = await postService.deletePost(post._id);
+        const postId = post._id ?? post.id;
+        const res = await postService.deletePost(postId);
         if (res.success) {
           toast.success('Post removed.');
-          if (onPostDeleted) onPostDeleted(post._id);
+          setDeleted(true); // hide immediately on every page (profile, search, detail...)
+          if (onPostDeleted) onPostDeleted(postId);
         }
       } catch (err) {
-        toast.error('Failed to delete post.');
+        toast.error(err.response?.data?.message || 'Failed to delete post.');
       }
     }
   };
@@ -86,6 +89,8 @@ export const PostCard = ({ post, onPostDeleted, hideActions = false }) => {
       }
     }
   };
+
+  if (deleted) return null;
 
   return (
     <article className="bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-6 border border-slate-200 dark:border-slate-800 shadow-card hover:shadow-card-hover transition-all duration-200 space-y-4 mb-4">

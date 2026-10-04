@@ -3,110 +3,173 @@ import { Play, Volume2, VolumeX } from 'lucide-react';
 
 /**
  * Instagram-style feed video.
- *  - Auto plays (with sound) when it scrolls into view, pauses when it leaves view
- *  - Loops
- *  - No native controls
- *  - Single click  -> pause / resume
- *  - Double click  -> mute / unmute
- *  - Mute choice is shared by every video on the page (like Instagram)
+ *  - Autoplays (with sound) when it scrolls into view, loops, no native controls
+ *  - ONLY ONE video plays at a time: the most visible one. Every other video
+ *    is paused AND muted.
+ *  - Single click -> pause / resume
+ *  - Double click -> mute / unmute (choice is shared by all videos)
  */
 
-// ---- shared mute state (so unmuting one video keeps the next one unmuted) ----
+const MIN_VISIBLE = 0.6; // how much of a video must be visible to become active
+
+// ---------------- shared mute state ----------------
 let globalMuted = false; // videos autoplay WITH sound
-const listeners = new Set();
+const muteListeners = new Set();
 const setGlobalMuted = (value) => {
   globalMuted = value;
-  listeners.forEach((fn) => fn(value));
+  muteListeners.forEach((fn) => fn(value));
 };
 
-// Browsers block autoplay-with-sound until the user has interacted with the
-// page. If that happens we start muted, then unmute on the very next
-// click / tap / key press anywhere on the page.
-let unmuteOnInteractionArmed = false;
+// Browsers block autoplay-with-sound until the user interacts with the page.
+// If blocked we start muted, then unmute on the next click / tap / key press.
+let unmuteArmed = false;
 const armUnmuteOnInteraction = () => {
-  if (unmuteOnInteractionArmed) return;
-  unmuteOnInteractionArmed = true;
+  if (unmuteArmed) return;
+  unmuteArmed = true;
   const events = ['pointerdown', 'touchstart', 'keydown'];
   const handler = () => {
     events.forEach((e) => document.removeEventListener(e, handler, true));
-    unmuteOnInteractionArmed = false;
+    unmuteArmed = false;
     setGlobalMuted(false);
   };
   events.forEach((e) => document.addEventListener(e, handler, true));
 };
 
-export const isVideoMedia = (media) =>
-  !!media?.url && (media.mediaType === 'video' || /\.(mp4|mov|mkv|webm)(\?|$)/i.test(media.url) || media.url.startsWith('data:video/'));
+// ---------------- single active player registry ----------------
+const registry = new Map(); // id -> { el, video, ratio, userPaused, setActive }
+let manualActiveId = null; // video the user explicitly resumed
+let idCounter = 0;
 
-export const FeedVideo = ({
-  src,
-  className = '',
-  videoClassName = 'w-full h-full object-cover',
-  threshold = 0.6,
-}) => {
+const reconcile = () => {
+  // 1) choose the active video
+  let activeId = null;
+
+  const manual = manualActiveId && registry.get(manualActiveId);
+  if (manual && manual.ratio >= 0.3) {
+    activeId = manualActiveId;
+  } else {
+    manualActiveId = null;
+    let bestRatio = 0;
+    let bestTop = Infinity;
+    registry.forEach((entry, id) => {
+      if (entry.ratio >= MIN_VISIBLE) {
+        const top = entry.el.getBoundingClientRect().top;
+        if (entry.ratio > bestRatio + 0.05 || (Math.abs(entry.ratio - bestRatio) <= 0.05 && top < bestTop)) {
+          activeId = id;
+          bestRatio = entry.ratio;
+          bestTop = top;
+        }
+      }
+    });
+  }
+
+  // 2) active one plays (unless the user paused it); everything else pauses + mutes
+  registry.forEach((entry, id) => {
+    const v = entry.video;
+    if (!v) return;
+    if (id === activeId) {
+      entry.setActive(true);
+      v.muted = globalMuted;
+      if (!entry.userPaused && v.paused) entry.play();
+    } else {
+      entry.setActive(false);
+      v.muted = true;
+      if (!v.paused) v.pause();
+    }
+  });
+};
+
+export const isVideoMedia = (media) =>
+  !!media?.url &&
+  (media.mediaType === 'video' ||
+    /\.(mp4|mov|mkv|webm)(\?|$)/i.test(media.url) ||
+    media.url.startsWith('data:video/'));
+
+export const FeedVideo = ({ src, className = '', videoClassName = 'w-full h-full object-cover' }) => {
   const containerRef = useRef(null);
   const videoRef = useRef(null);
   const clickTimer = useRef(null);
-  const userPaused = useRef(false);
   const feedbackTimer = useRef(null);
+  const entryRef = useRef(null);
+  const idRef = useRef(`fv_${++idCounter}`);
 
   const [muted, setMuted] = useState(globalMuted);
-  const [paused, setPaused] = useState(false);
+  const [isActive, setIsActive] = useState(false);
+  const [paused, setPaused] = useState(true);
   const [feedback, setFeedback] = useState(null); // 'play' | 'pause' | 'mute' | 'unmute'
-
-  // keep in sync with the shared mute state
-  useEffect(() => {
-    const fn = (value) => setMuted(value);
-    listeners.add(fn);
-    return () => listeners.delete(fn);
-  }, []);
-
-  useEffect(() => {
-    if (videoRef.current) videoRef.current.muted = muted;
-  }, [muted]);
 
   const play = useCallback(() => {
     const v = videoRef.current;
     if (!v) return;
+    v.muted = globalMuted;
     const p = v.play();
     if (p && p.catch) {
       p.catch(() => {
-        // Browser blocked autoplay with sound -> play muted for now and
-        // unmute automatically on the user's first interaction
+        // autoplay with sound blocked -> play muted, unmute on first interaction
         v.muted = true;
-        setMuted(true);
+        setGlobalMuted(true);
         v.play().catch(() => {});
         armUnmuteOnInteraction();
       });
     }
   }, []);
 
-  // Autoplay when visible, pause when scrolled away
+  // register in the shared registry + watch visibility
   useEffect(() => {
     const el = containerRef.current;
-    const v = videoRef.current;
-    if (!el || !v) return undefined;
+    const id = idRef.current;
+    if (!el) return undefined;
+
+    const entry = {
+      el,
+      video: videoRef.current,
+      ratio: 0,
+      userPaused: false,
+      setActive: setIsActive,
+      play,
+    };
+    entryRef.current = entry;
+    registry.set(id, entry);
 
     const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting && entry.intersectionRatio >= threshold) {
-          if (!userPaused.current) play();
-        } else {
-          v.pause();
-        }
+      ([e]) => {
+        entry.ratio = e.isIntersecting ? e.intersectionRatio : 0;
+        reconcile();
       },
-      { threshold: [0, threshold, 1] }
+      { threshold: [0, 0.1, 0.3, 0.5, 0.6, 0.75, 0.9, 1] }
     );
     observer.observe(el);
-    return () => observer.disconnect();
-  }, [play, threshold]);
 
-  // Pause when the tab is hidden
+    return () => {
+      observer.disconnect();
+      registry.delete(id);
+      if (manualActiveId === id) manualActiveId = null;
+      reconcile();
+    };
+  }, [play]);
+
+  // keep mute state in sync (only the active video is ever audible)
+  useEffect(() => {
+    const fn = (value) => {
+      setMuted(value);
+      const v = videoRef.current;
+      if (v) v.muted = entryRef.current && isActiveRef.current ? value : true;
+    };
+    muteListeners.add(fn);
+    return () => muteListeners.delete(fn);
+  }, []);
+
+  const isActiveRef = useRef(false);
+  useEffect(() => {
+    isActiveRef.current = isActive;
+    if (videoRef.current) videoRef.current.muted = isActive ? muted : true;
+  }, [isActive, muted]);
+
+  // pause when tab hidden, resume active one when visible again
   useEffect(() => {
     const onVisibility = () => {
-      const v = videoRef.current;
-      if (!v) return;
-      if (document.hidden) v.pause();
+      if (document.hidden) videoRef.current?.pause();
+      else reconcile();
     };
     document.addEventListener('visibilitychange', onVisibility);
     return () => document.removeEventListener('visibilitychange', onVisibility);
@@ -128,13 +191,16 @@ export const FeedVideo = ({
 
   const togglePlayback = () => {
     const v = videoRef.current;
-    if (!v) return;
+    const entry = entryRef.current;
+    if (!v || !entry) return;
     if (v.paused) {
-      userPaused.current = false;
-      play();
+      entry.userPaused = false;
+      manualActiveId = idRef.current; // user chose this one -> it becomes the only active video
+      reconcile();
+      if (v.paused) play();
       flash('play');
     } else {
-      userPaused.current = true;
+      entry.userPaused = true;
       v.pause();
       flash('pause');
     }
@@ -146,7 +212,7 @@ export const FeedVideo = ({
     flash(next ? 'mute' : 'unmute');
   };
 
-  // Single click = pause/resume, double click = mute/unmute
+  // single click = pause/resume, double click = mute/unmute
   const handleClick = (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -162,6 +228,8 @@ export const FeedVideo = ({
     }, 250);
   };
 
+  const showMuted = muted || !isActive;
+
   return (
     <div
       ref={containerRef}
@@ -169,10 +237,13 @@ export const FeedVideo = ({
       className={`relative bg-black overflow-hidden cursor-pointer select-none ${className}`}
     >
       <video
-        ref={videoRef}
+        ref={(node) => {
+          videoRef.current = node;
+          if (entryRef.current) entryRef.current.video = node;
+        }}
         src={src}
         className={videoClassName}
-        muted={muted}
+        muted
         loop
         playsInline
         preload="metadata"
@@ -210,9 +281,9 @@ export const FeedVideo = ({
         </div>
       )}
 
-      {/* Small mute badge (bottom-right), like Instagram */}
+      {/* Mute badge */}
       <div className="absolute bottom-3 right-3 w-8 h-8 rounded-full bg-black/60 flex items-center justify-center pointer-events-none">
-        {muted ? <VolumeX className="w-4 h-4 text-white" /> : <Volume2 className="w-4 h-4 text-white" />}
+        {showMuted ? <VolumeX className="w-4 h-4 text-white" /> : <Volume2 className="w-4 h-4 text-white" />}
       </div>
     </div>
   );

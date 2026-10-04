@@ -7,6 +7,7 @@ import { CommentList } from './CommentList';
 import { ShareModal } from './ShareModal';
 import { formatTimeAgo } from '../../utils/dateUtils';
 import { postService } from '../../services/postService';
+import { FeedVideo, isVideoMedia } from '../common/FeedVideo';
 import {
   Heart,
   MessageCircle,
@@ -228,6 +229,15 @@ export const PostCard = ({ post, onPostDeleted, hideActions = false }) => {
             referrerPolicy="no-referrer"
           />
         </div>
+      )}
+
+      {/* Video Media (Instagram-style autoplay) */}
+      {isVideoMedia(post.media) && (
+        <FeedVideo
+          src={post.media.url}
+          className="rounded-2xl border border-slate-100 dark:border-slate-800 w-full max-h-[560px]"
+          videoClassName="w-full max-h-[560px] object-contain bg-black"
+        />
       )}
 
       {/* Engagement Action Bar */}

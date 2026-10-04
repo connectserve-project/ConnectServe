@@ -6,6 +6,7 @@ import { Link } from 'react-router-dom';
 import { CategoryBadge, VerifiedOrgBadge } from '../common/Badge';
 import { Avatar } from '../common/Avatar';
 import { formatDate } from '../../utils/dateUtils';
+import { FeedVideo, isVideoMedia } from '../common/FeedVideo';
 import {
   Calendar,
   Clock,
@@ -44,14 +45,18 @@ export const EventCard = ({ event, onDeleted }) => {
     <div className="bg-white dark:bg-slate-900 rounded-3xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-card hover:shadow-card-hover transition-all duration-200 flex flex-col h-full group">
       {/* Banner Image & Category */}
       <div className="relative h-48 sm:h-52 w-full overflow-hidden bg-slate-100 dark:bg-slate-800">
-        <img
-          src={event.banner?.url || 'https://images.unsplash.com/photo-1559027615-cd4628902d4a?w=800&auto=format&fit=crop&q=80'}
-          alt={event.title}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-          loading="lazy"
-          crossOrigin="anonymous"
-          referrerPolicy="no-referrer"
-        />
+        {isVideoMedia(event.banner) ? (
+          <FeedVideo src={event.banner.url} className="w-full h-full" />
+        ) : (
+          <img
+            src={event.banner?.url || 'https://images.unsplash.com/photo-1559027615-cd4628902d4a?w=800&auto=format&fit=crop&q=80'}
+            alt={event.title}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            loading="lazy"
+            crossOrigin="anonymous"
+            referrerPolicy="no-referrer"
+          />
+        )}
         <div className="absolute top-3 left-3 flex items-center gap-1.5 flex-wrap">
           <CategoryBadge category={event.category} />
         </div>

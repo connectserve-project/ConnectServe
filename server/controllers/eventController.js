@@ -1,6 +1,6 @@
 const { Event, EventRegistration, Review, User, Post } = require('../models');
 const { Op } = require('sequelize');
-const { uploadToCloudinary, deleteFromCloudinary } = require('../config/cloudinary');
+const { uploadToCloudinary, deleteFromCloudinary, toPlayableVideoUrl } = require('../config/cloudinary');
 const { sendSuccess, sendError } = require('../utils/responseHandler');
 
 // Helper to resolve model by PK or mongoId
@@ -35,16 +35,22 @@ const createEvent = async (req, res, next) => {
     let banner = {
       url: 'https://images.unsplash.com/photo-1559027615-cd4628902d4a?w=1200&auto=format&fit=crop&q=80',
       public_id: '',
+      mediaType: 'image',
     };
 
     if (req.file) {
-      const uploadResult = await uploadToCloudinary(req.file.buffer, 'connectserve/events', {
-        transformation: [{ width: 1200, height: 600, crop: 'fill' }],
-        mimetype: req.file.mimetype,
-      });
+      const isVideo = req.file.mimetype.startsWith('video/');
+      const uploadResult = await uploadToCloudinary(
+        req.file.buffer,
+        'connectserve/events',
+        isVideo
+          ? { mimetype: req.file.mimetype }
+          : { transformation: [{ width: 1200, height: 600, crop: 'fill' }], mimetype: req.file.mimetype }
+      );
       banner = {
-        url: uploadResult.secure_url,
+        url: isVideo ? toPlayableVideoUrl(uploadResult.secure_url) : uploadResult.secure_url,
         public_id: uploadResult.public_id,
+        mediaType: isVideo ? 'video' : 'image',
       };
     }
 
@@ -277,15 +283,20 @@ const updateEvent = async (req, res, next) => {
 
     if (req.file) {
       if (event.banner?.public_id) {
-        await deleteFromCloudinary(event.banner.public_id);
+        await deleteFromCloudinary(event.banner.public_id, event.banner.mediaType);
       }
-      const uploadResult = await uploadToCloudinary(req.file.buffer, 'connectserve/events', {
-        transformation: [{ width: 1200, height: 600, crop: 'fill' }],
-        mimetype: req.file.mimetype,
-      });
+      const isVideo = req.file.mimetype.startsWith('video/');
+      const uploadResult = await uploadToCloudinary(
+        req.file.buffer,
+        'connectserve/events',
+        isVideo
+          ? { mimetype: req.file.mimetype }
+          : { transformation: [{ width: 1200, height: 600, crop: 'fill' }], mimetype: req.file.mimetype }
+      );
       event.banner = {
-        url: uploadResult.secure_url,
+        url: isVideo ? toPlayableVideoUrl(uploadResult.secure_url) : uploadResult.secure_url,
         public_id: uploadResult.public_id,
+        mediaType: isVideo ? 'video' : 'image',
       };
     }
 
@@ -316,7 +327,7 @@ const deleteEvent = async (req, res, next) => {
     }
 
     if (event.banner?.public_id) {
-      await deleteFromCloudinary(event.banner.public_id);
+      await deleteFromCloudinary(event.banner.public_id, event.banner.mediaType);
     }
 
     // Unlink posts tagged with this event so the delete never hits an FK error

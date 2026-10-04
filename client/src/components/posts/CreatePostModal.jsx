@@ -6,6 +6,8 @@ import { useAuth } from '../../hooks/useAuth';
 import { postService } from '../../services/postService';
 import { eventService } from '../../services/eventService';
 import { Image, X, Sparkles, Tag, Calendar, MapPin } from 'lucide-react';
+import { FeedVideo } from '../common/FeedVideo';
+import { MEDIA_ACCEPT, MAX_MEDIA_SIZE_MB, validateMediaFile, isVideoFile } from '../../utils/mediaUtils';
 import toast from 'react-hot-toast';
 
 export const CreatePostModal = ({ isOpen, onClose, onPostCreated }) => {
@@ -39,11 +41,14 @@ export const CreatePostModal = ({ isOpen, onClose, onPostCreated }) => {
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
+    e.target.value = ''; // allow re-selecting the same file
     if (file) {
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error('Image size must be under 10 MB.');
+      const error = validateMediaFile(file);
+      if (error) {
+        toast.error(error);
         return;
       }
+      if (mediaPreview) URL.revokeObjectURL(mediaPreview);
       setMediaFile(file);
       setMediaPreview(URL.createObjectURL(file));
     }
@@ -73,7 +78,7 @@ export const CreatePostModal = ({ isOpen, onClose, onPostCreated }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!content.trim() && !mediaFile) {
-      toast.error('Please enter a caption or upload an image.');
+      toast.error('Please enter a caption or add a photo/video.');
       return;
     }
 
@@ -137,14 +142,18 @@ export const CreatePostModal = ({ isOpen, onClose, onPostCreated }) => {
           className="w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none"
         />
 
-        {/* Image Preview */}
+        {/* Media Preview (photo or video) */}
         {mediaPreview && (
-          <div className="relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 max-h-60">
-            <img src={mediaPreview} alt="Upload preview" className="w-full h-full object-cover" />
+          <div className="relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 max-h-72">
+            {isVideoFile(mediaFile) ? (
+              <FeedVideo src={mediaPreview} className="w-full max-h-72" videoClassName="w-full max-h-72 object-contain bg-black" />
+            ) : (
+              <img src={mediaPreview} alt="Upload preview" className="w-full h-full object-cover" />
+            )}
             <button
               type="button"
               onClick={handleRemoveImage}
-              className="absolute top-2 right-2 p-1.5 rounded-full bg-slate-900/70 text-white hover:bg-slate-900 transition-colors"
+              className="absolute top-2 right-2 z-10 p-1.5 rounded-full bg-slate-900/70 text-white hover:bg-slate-900 transition-colors"
             >
               <X className="w-4 h-4" />
             </button>
@@ -216,14 +225,18 @@ export const CreatePostModal = ({ isOpen, onClose, onPostCreated }) => {
           </div>
         </div>
 
+        <p className="text-[11px] text-slate-400 -mt-2">
+          Photos (JPG, PNG, WEBP, GIF) or videos (MP4, MOV, MKV, WEBM) up to {MAX_MEDIA_SIZE_MB} MB.
+        </p>
+
         {/* Actions bar */}
         <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-800">
           <label className="inline-flex items-center gap-2 cursor-pointer text-emerald-600 hover:text-emerald-700 text-xs font-semibold px-3 py-2 rounded-xl hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition-colors min-h-[44px]">
             <Image className="w-4 h-4" />
-            <span>Add Photo</span>
+            <span>Add Media</span>
             <input
               type="file"
-              accept="image/*"
+              accept={MEDIA_ACCEPT}
               className="hidden"
               onChange={handleImageChange}
             />

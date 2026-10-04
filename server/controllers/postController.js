@@ -1,6 +1,6 @@
 const { Post, Comment, User, Notification, Report, Event } = require('../models');
 const { Op } = require('sequelize');
-const { uploadToCloudinary, deleteFromCloudinary } = require('../config/cloudinary');
+const { uploadToCloudinary, deleteFromCloudinary, toPlayableVideoUrl } = require('../config/cloudinary');
 const { sendSuccess, sendError } = require('../utils/responseHandler');
 const { sendEventTaggedEmail } = require('../utils/emailService');
 
@@ -33,20 +33,24 @@ const createPost = async (req, res, next) => {
     }
 
     if (!content && !req.file) {
-      return sendError(res, 'Post must have either text content or an image.', 400);
+      return sendError(res, 'Post must have either text content, a photo or a video.', 400);
     }
 
     let media = { url: '', public_id: '', mediaType: 'none' };
 
     if (req.file) {
-      const uploadResult = await uploadToCloudinary(req.file.buffer, 'connectserve/posts', {
-        transformation: [{ width: 1200, crop: 'limit' }],
-        mimetype: req.file.mimetype,
-      });
+      const isVideo = req.file.mimetype.startsWith('video/');
+      const uploadResult = await uploadToCloudinary(
+        req.file.buffer,
+        'connectserve/posts',
+        isVideo
+          ? { mimetype: req.file.mimetype }
+          : { transformation: [{ width: 1200, crop: 'limit' }], mimetype: req.file.mimetype }
+      );
       media = {
-        url: uploadResult.secure_url,
+        url: isVideo ? toPlayableVideoUrl(uploadResult.secure_url) : uploadResult.secure_url,
         public_id: uploadResult.public_id,
-        mediaType: 'image',
+        mediaType: isVideo ? 'video' : 'image',
       };
     }
 
@@ -391,7 +395,7 @@ const deletePost = async (req, res, next) => {
 
     // Delete image from Cloudinary if exists
     if (post.media?.public_id) {
-      try { await deleteFromCloudinary(post.media.public_id); } catch (e) { console.error('[Cloudinary] cleanup failed:', e.message); }
+      try { await deleteFromCloudinary(post.media.public_id, post.media.mediaType); } catch (e) { console.error('[Cloudinary] cleanup failed:', e.message); }
     }
 
     // Delete comments

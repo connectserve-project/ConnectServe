@@ -17,7 +17,7 @@ const {
 const { protect, optionalAuth } = require('../middleware/authMiddleware');
 const { authorize } = require('../middleware/roleMiddleware');
 const { validate } = require('../middleware/validationMiddleware');
-const upload = require('../middleware/uploadMiddleware');
+const { uploadMedia } = require('../middleware/uploadMiddleware');
 
 const router = express.Router();
 
@@ -30,7 +30,7 @@ router.post(
   '/',
   protect,
   authorize('organization', 'admin'),
-  upload.single('banner'),
+  uploadMedia.single('banner'),
   [
     body('title').trim().notEmpty().withMessage('Event title is required'),
     body('description').trim().notEmpty().withMessage('Event description is required'),
@@ -41,7 +41,7 @@ router.post(
   createEvent
 );
 
-router.put('/:id', protect, authorize('organization', 'admin'), upload.single('banner'), updateEvent);
+router.put('/:id', protect, authorize('organization', 'admin'), uploadMedia.single('banner'), updateEvent);
 router.delete('/:id', protect, authorize('organization', 'admin'), deleteEvent);
 
 // Volunteer Application & Applicants

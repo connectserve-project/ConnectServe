@@ -4,6 +4,8 @@ import { eventService } from '../services/eventService';
 import { EVENT_CATEGORIES, POPULAR_SKILLS } from '../utils/constants';
 import { Button } from '../components/common/Button';
 import { Image, X, Calendar, Clock, MapPin, Users, Award, ArrowLeft, Sparkles } from 'lucide-react';
+import { FeedVideo, isVideoMedia } from '../components/common/FeedVideo';
+import { MEDIA_ACCEPT, MAX_MEDIA_SIZE_MB, validateMediaFile, isVideoFile } from '../utils/mediaUtils';
 import toast from 'react-hot-toast';
 
 export const CreateEditEvent = () => {
@@ -27,6 +29,7 @@ export const CreateEditEvent = () => {
 
   const [bannerFile, setBannerFile] = useState(null);
   const [bannerPreview, setBannerPreview] = useState(null);
+  const [bannerIsVideo, setBannerIsVideo] = useState(false);
   const [reqInput, setReqInput] = useState('');
   const [skillInput, setSkillInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -51,7 +54,10 @@ export const CreateEditEvent = () => {
               requirements: e.requirements || [],
               skillsNeeded: e.skillsNeeded || [],
             });
-            if (e.banner?.url) setBannerPreview(e.banner.url);
+            if (e.banner?.url) {
+              setBannerPreview(e.banner.url);
+              setBannerIsVideo(isVideoMedia(e.banner));
+            }
           }
         } catch (err) {
           toast.error('Failed to load event details.');
@@ -63,9 +69,17 @@ export const CreateEditEvent = () => {
 
   const handleBannerSelect = (e) => {
     const file = e.target.files[0];
+    e.target.value = ''; // allow re-selecting the same file
     if (file) {
+      const error = validateMediaFile(file);
+      if (error) {
+        toast.error(error);
+        return;
+      }
+      if (bannerPreview && bannerPreview.startsWith('blob:')) URL.revokeObjectURL(bannerPreview);
       setBannerFile(file);
       setBannerPreview(URL.createObjectURL(file));
+      setBannerIsVideo(isVideoFile(file));
     }
   };
 
@@ -166,19 +180,24 @@ export const CreateEditEvent = () => {
           {/* Banner Upload Area */}
           <div>
             <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">
-              Event Banner Image
+              Event Media (Photo or Video)
             </label>
             <div className="relative border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-3xl overflow-hidden p-6 text-center hover:border-emerald-500 transition-colors bg-slate-50 dark:bg-slate-800/40">
               {bannerPreview ? (
                 <div className="relative max-h-60 rounded-2xl overflow-hidden mx-auto">
-                  <img src={bannerPreview} alt="Banner preview" className="w-full h-56 object-cover" />
+                  {bannerIsVideo ? (
+                    <FeedVideo src={bannerPreview} className="w-full h-56" />
+                  ) : (
+                    <img src={bannerPreview} alt="Banner preview" className="w-full h-56 object-cover" />
+                  )}
                   <button
                     type="button"
                     onClick={() => {
                       setBannerFile(null);
                       setBannerPreview(null);
+                      setBannerIsVideo(false);
                     }}
-                    className="absolute top-3 right-3 p-1.5 rounded-full bg-slate-900/80 text-white hover:bg-slate-900"
+                    className="absolute top-3 right-3 z-10 p-1.5 rounded-full bg-slate-900/80 text-white hover:bg-slate-900"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -189,14 +208,14 @@ export const CreateEditEvent = () => {
                     <Image className="w-6 h-6" />
                   </div>
                   <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                    Click to select high-res banner photo
+                    Add Media - click to select a photo or video
                   </span>
                   <span className="text-[11px] text-slate-400">
-                    PNG, JPG, or WEBP up to 10 MB
+                    Photos: JPG, PNG, WEBP, GIF · Videos: MP4, MOV, MKV, WEBM · up to {MAX_MEDIA_SIZE_MB} MB
                   </span>
                   <input
                     type="file"
-                    accept="image/*"
+                    accept={MEDIA_ACCEPT}
                     className="hidden"
                     onChange={handleBannerSelect}
                   />

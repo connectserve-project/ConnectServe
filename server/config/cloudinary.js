@@ -51,17 +51,27 @@ const uploadToCloudinary = (buffer, folder = 'connectserve/general', customOptio
       });
     }
 
+    const isVideo = !!(customOptions.mimetype && customOptions.mimetype.startsWith('video/'));
+
     const defaultTransformations = [
       { quality: 'auto', fetch_format: 'auto' },
       { width: 'auto', crop: 'limit' }
     ];
 
+    // `mimetype` is only used internally; never forward it to Cloudinary
+    const { mimetype: _ignoredMimetype, transformation: customTransformation, ...restOptions } = customOptions;
+
     const uploadOptions = {
       folder,
-      resource_type: 'auto',
-      transformation: customOptions.transformation || defaultTransformations,
-      ...customOptions,
+      resource_type: isVideo ? 'video' : 'auto',
+      ...restOptions,
     };
+
+    // Videos are uploaded untouched (no blocking transformation) and are
+    // transcoded lazily on delivery (see toPlayableVideoUrl below).
+    if (!isVideo) {
+      uploadOptions.transformation = customTransformation || defaultTransformations;
+    }
 
     const stream = cloudinary.uploader.upload_stream(uploadOptions, (error, result) => {
       if (error) {
@@ -69,6 +79,7 @@ const uploadToCloudinary = (buffer, folder = 'connectserve/general', customOptio
         return reject(error);
       }
       resolve({
+        resource_type: result.resource_type,
         url: result.url,
         secure_url: result.secure_url,
         public_id: result.public_id,
@@ -93,14 +104,16 @@ const uploadToCloudinary = (buffer, folder = 'connectserve/general', customOptio
  * @param {string} public_id
  * @returns {Promise<object>}
  */
-const deleteFromCloudinary = async (public_id) => {
+const deleteFromCloudinary = async (public_id, resourceType = 'image') => {
   if (!public_id) return null;
   if (public_id.startsWith('http') || public_id.includes('local_') || !isCloudinaryConfigured()) {
     return { result: 'ok (local/mock bypass)' };
   }
 
   try {
-    const result = await cloudinary.uploader.destroy(public_id);
+    const result = await cloudinary.uploader.destroy(public_id, {
+      resource_type: resourceType === 'video' ? 'video' : 'image',
+    });
     return result;
   } catch (error) {
     console.error(`[Cloudinary Delete Error] Failed to delete asset ${public_id}:`, error.message);
@@ -125,7 +138,20 @@ const getTransformedUrl = (public_id, options = {}) => {
   });
 };
 
+/**
+ * Makes any uploaded video (MOV / MKV / WEBM / MP4) playable in every browser
+ * by asking Cloudinary to deliver it as H.264 MP4. Local/mock uploads (data
+ * URIs) are returned unchanged.
+ */
+const toPlayableVideoUrl = (url) => {
+  if (!url || url.startsWith('data:') || !url.includes('/video/upload/')) return url;
+  return url
+    .replace('/video/upload/', '/video/upload/f_mp4,vc_h264,q_auto/')
+    .replace(/\.[a-z0-9]+$/i, '.mp4');
+};
+
 module.exports = {
+  toPlayableVideoUrl,
   cloudinary,
   uploadToCloudinary,
   deleteFromCloudinary,

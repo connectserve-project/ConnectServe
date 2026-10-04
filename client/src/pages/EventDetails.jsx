@@ -10,6 +10,7 @@ import { CategoryBadge, VerifiedOrgBadge } from '../components/common/Badge';
 import { Button } from '../components/common/Button';
 import { ReviewModal } from '../components/events/ReviewModal';
 import { formatDate } from '../utils/dateUtils';
+import { FeedVideo, isVideoMedia } from '../components/common/FeedVideo';
 import {
   Calendar,
   Clock,
@@ -155,14 +156,18 @@ export const EventDetails = () => {
 
       {/* Hero Banner Card */}
       <div className="relative rounded-3xl overflow-hidden bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl max-h-[440px]">
-        <img
-          src={event.banner?.url || 'https://images.unsplash.com/photo-1559027615-cd4628902d4a?w=1200&auto=format&fit=crop&q=80'}
-          alt={event.title}
-          className="w-full h-80 sm:h-96 object-cover opacity-80"
-          crossOrigin="anonymous"
-          referrerPolicy="no-referrer"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent flex flex-col justify-end p-6 sm:p-10">
+        {isVideoMedia(event.banner) ? (
+          <FeedVideo src={event.banner.url} className="w-full h-80 sm:h-96" />
+        ) : (
+          <img
+            src={event.banner?.url || 'https://images.unsplash.com/photo-1559027615-cd4628902d4a?w=1200&auto=format&fit=crop&q=80'}
+            alt={event.title}
+            className="w-full h-80 sm:h-96 object-cover opacity-80"
+            crossOrigin="anonymous"
+            referrerPolicy="no-referrer"
+          />
+        )}
+        <div className={`absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent flex flex-col justify-end p-6 sm:p-10 ${isVideoMedia(event.banner) ? 'pointer-events-none' : ''}`}>
           <div className="flex items-center gap-2 mb-2 flex-wrap">
             <CategoryBadge category={event.category} />
             <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 backdrop-blur-md text-emerald-300 border border-emerald-400/30">

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
 import { Avatar } from '../common/Avatar';
@@ -12,6 +13,7 @@ import toast from 'react-hot-toast';
 
 export const CreatePostModal = ({ isOpen, onClose, onPostCreated }) => {
   const { user } = useAuth();
+  const navigate = useNavigate(); 
   const [content, setContent] = useState('');
   const [mediaFile, setMediaFile] = useState(null);
   const [mediaPreview, setMediaPreview] = useState(null);
@@ -109,6 +111,7 @@ export const CreatePostModal = ({ isOpen, onClose, onPostCreated }) => {
         setEventTag('');
         onClose();
         if (onPostCreated) onPostCreated(res.data.post);
+        navigate('/feed');
       }
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to publish post');

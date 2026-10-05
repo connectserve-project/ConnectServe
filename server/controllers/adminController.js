@@ -274,6 +274,37 @@ const getModerationQueue = async (req, res, next) => {
   }
 };
 
+// @desc    Read the chat behind a chat report (admin only, includes messages the reporter deleted)
+// @route   GET /api/admin/reports/:id/messages
+// @access  Private (Admin)
+const getReportMessages = async (req, res, next) => {
+  try {
+    let report = await Report.findByPk(req.params.id);
+    if (!report) {
+      report = await Report.findOne({ where: { mongoId: String(req.params.id) } });
+    }
+    if (!report) return sendError(res, 'Report not found.', 404);
+    if (!report.conversationId) {
+      return sendError(res, 'This report has no chat attached.', 400);
+    }
+
+    const messages = await Message.findAll({
+      where: { conversationId: report.conversationId },
+      order: [['createdAt', 'DESC']],
+      limit: 200,
+      include: [{ model: User, as: 'sender', attributes: ['id', 'name', 'username', 'avatar'] }],
+    });
+
+    return sendSuccess(res, 'Chat messages fetched.', {
+      messages: messages.reverse(),
+      reportedUserId: String(report.targetId),
+      reporterId: String(report.reporterId),
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // @desc    Resolve moderation report
 // @route   PUT /api/admin/reports/:id
 // @access  Private (Admin)
@@ -289,7 +320,40 @@ const resolveReport = async (req, res, next) => {
       return sendError(res, 'Report not found.', 404);
     }
 
-    if (action === 'delete_target') {
+    if (action === 'warn_user' || action === 'ban_user') {
+      const targetUser = report.targetType === 'user' ? await findUserByIdOrMongoId(report.targetId) : null;
+      if (!targetUser) {
+        return sendError(res, 'Reported user not found.', 404);
+      }
+      if (targetUser.role === 'admin') {
+        return sendError(res, 'Cannot take action against an administrator account.', 403);
+      }
+
+      if (action === 'warn_user') {
+        const warning = await Notification.create({
+          recipientId: targetUser.id,
+          senderId: req.user.id || req.user._id,
+          type: 'admin_warning',
+          title: 'Warning from ConnectServe moderators',
+          message:
+            resolutionNotes ||
+            'Your messages were reported and reviewed. Please follow the community guidelines to avoid account suspension.',
+          entityId: String(report.id),
+          entityType: 'report',
+          link: '',
+        });
+        const io = req.app.get('io');
+        if (io) io.to(`user:${targetUser.id}`).emit('notification', warning);
+      } else {
+        const reason = resolutionNotes || `Banned after a user report (${report.reason}).`;
+        targetUser.isBanned = true;
+        targetUser.banReason = reason;
+        await targetUser.save();
+        sendAccountBannedEmail(targetUser, reason)
+          .catch(err => console.error('[Email] Ban email failed:', err.message));
+      }
+      report.status = 'resolved';
+    } else if (action === 'delete_target') {
       if (report.targetType === 'post') {
         await Post.destroy({ where: { id: report.targetId } });
         await Comment.destroy({ where: { postId: report.targetId } });
@@ -374,4 +438,5 @@ module.exports = {
   verifyOrganization,
   getModerationQueue,
   resolveReport,
+  getReportMessages,
 };

@@ -44,6 +44,11 @@ const Report = sequelize.define('Report', {
     type: DataTypes.INTEGER,
     allowNull: true,
   },
+  // Set when the report comes from a chat, so admins can read the conversation
+  conversationId: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+  },
 }, {
   tableName: 'reports',
   timestamps: true,

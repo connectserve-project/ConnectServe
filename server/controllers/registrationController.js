@@ -21,6 +21,14 @@ const registerForEvent = async (req, res, next) => {
     const userId = req.user.id || req.user._id;
     const { notes } = req.body;
 
+    if (req.user.role === 'admin') {
+      return sendError(res, 'Admins cannot volunteer for events.', 403);
+    }
+
+    if (req.user.role === 'organization') {
+      return sendError(res, "Can't Join Others Events", 403);
+    }
+
     const event = await findEventByIdOrMongoId(eventIdParam);
     if (!event) {
       return sendError(res, 'Event not found.', 404);
@@ -28,7 +36,10 @@ const registerForEvent = async (req, res, next) => {
 
     const organizer = await User.findByPk(event.organizerId);
 
-    const eventDatePassed = new Date(event.date) < new Date();
+    // Event is over once its end date (or the end of its start day) has passed
+    const eventEnd = new Date(event.endDate || event.date);
+    eventEnd.setHours(23, 59, 59, 999);
+    const eventDatePassed = eventEnd < new Date();
     if (eventDatePassed && event.status !== 'completed') {
       // Auto-mark stale events as completed so future checks are fast
       event.status = 'completed';
@@ -36,7 +47,7 @@ const registerForEvent = async (req, res, next) => {
     }
 
     if (event.status === 'cancelled' || event.status === 'completed' || eventDatePassed) {
-      return sendError(res, `This event has already ended and is no longer accepting volunteers.`, 400);
+      return sendError(res, `This event is done, you can't join.`, 400);
     }
 
     if (event.registeredCount >= event.volunteerSlots) {

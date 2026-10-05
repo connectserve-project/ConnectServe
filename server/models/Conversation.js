@@ -32,6 +32,16 @@ const Conversation = sequelize.define('Conversation', {
     type: DataTypes.JSON,
     defaultValue: {},
   },
+  // IDs of participants who blocked the other person in this conversation
+  blockedBy: {
+    type: DataTypes.JSON,
+    defaultValue: [],
+  },
+  // { [userId]: ISO date } - when each participant deleted the chat (hidden for them only)
+  deletedBy: {
+    type: DataTypes.JSON,
+    defaultValue: {},
+  },
 }, {
   tableName: 'conversations',
   timestamps: true,

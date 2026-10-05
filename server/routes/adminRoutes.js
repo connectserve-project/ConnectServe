@@ -8,6 +8,7 @@ const {
   verifyOrganization,
   getModerationQueue,
   resolveReport,
+  getReportMessages,
 } = require('../controllers/adminController');
 const { protect } = require('../middleware/authMiddleware');
 const { authorize } = require('../middleware/roleMiddleware');
@@ -24,6 +25,7 @@ router.delete('/users/:id', deleteUser);
 router.get('/organizations', getOrganizations);
 router.put('/organizations/:id/verify', verifyOrganization);
 router.get('/reports', getModerationQueue);
+router.get('/reports/:id/messages', getReportMessages);
 router.put('/reports/:id', resolveReport);
 
 module.exports = router;

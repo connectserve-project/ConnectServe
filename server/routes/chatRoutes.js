@@ -4,6 +4,10 @@ const {
   getOrCreateConversation,
   getMessages,
   sendMessage,
+  deleteConversation,
+  blockUser,
+  unblockUser,
+  reportUser,
 } = require('../controllers/chatController');
 const { protect } = require('../middleware/authMiddleware');
 const upload = require('../middleware/uploadMiddleware');
@@ -16,5 +20,9 @@ router.get('/conversations', getConversations);
 router.post('/conversations', getOrCreateConversation);
 router.get('/conversations/:id/messages', getMessages);
 router.post('/conversations/:id/messages', upload.single('media'), sendMessage);
+router.delete('/conversations/:id', deleteConversation);
+router.post('/conversations/:id/block', blockUser);
+router.delete('/conversations/:id/block', unblockUser);
+router.post('/conversations/:id/report', reportUser);
 
 module.exports = router;

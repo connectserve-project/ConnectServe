@@ -1,4 +1,4 @@
-const { Conversation, Message, User } = require('../models');
+const { Conversation, Message, User, Report } = require('../models');
 const { Op } = require('sequelize');
 const { uploadToCloudinary } = require('../config/cloudinary');
 const { sendSuccess, sendError } = require('../utils/responseHandler');
@@ -9,6 +9,40 @@ const findConversationByIdOrMongoId = async (id, options = {}) => {
     if (conv) return conv;
   }
   return await Conversation.findOne({ where: { mongoId: String(id) }, ...options });
+};
+
+const getParticipantIds = (conv) =>
+  Array.isArray(conv.participants) ? conv.participants.map((p) => String(p)) : [];
+const getBlockedBy = (conv) =>
+  Array.isArray(conv.blockedBy) ? conv.blockedBy.map((b) => String(b)) : [];
+// When this user deleted the chat (null if they never did)
+const getDeletedAt = (conv, userId) => {
+  const d = conv.deletedBy && typeof conv.deletedBy === 'object' ? conv.deletedBy[String(userId)] : null;
+  return d ? new Date(d) : null;
+};
+
+// Adds per-user block flags and strips the raw bookkeeping fields before sending to the client
+const decorateConversation = (convObj, conv, userId) => {
+  const blocked = getBlockedBy(conv);
+  convObj.isBlockedByMe = blocked.includes(String(userId));
+  convObj.isBlockedByOther = blocked.some((b) => b !== String(userId));
+  delete convObj.blockedBy;
+  delete convObj.deletedBy;
+  return convObj;
+};
+
+const loadParticipantUser = (conv, userId) => {
+  const parts = getParticipantIds(conv);
+  return parts.includes(String(userId));
+};
+
+const notifyBlockChange = (req, conv, userId) => {
+  const io = req.app.get('io');
+  if (!io) return;
+  const other = getParticipantIds(conv).find((p) => p !== String(userId));
+  if (other) {
+    io.to(`user:${other}`).emit('conversation_block_changed', { conversationId: conv.id });
+  }
 };
 
 // @desc    Get all active conversations for current user
@@ -25,7 +59,11 @@ const getConversations = async (req, res, next) => {
     // Filter conversations where user is a participant
     const userConversations = allConversations.filter((c) => {
       const parts = Array.isArray(c.participants) ? c.participants : [];
-      return parts.some((p) => String(p) === String(userId));
+      if (!parts.some((p) => String(p) === String(userId))) return false;
+      // Hide chats this user deleted, until a newer message arrives
+      const deletedAt = getDeletedAt(c, userId);
+      if (deletedAt && new Date(c.lastMessageAt) <= deletedAt) return false;
+      return true;
     });
 
     // Populate participants and lastMessage manually for rich response
@@ -43,7 +81,7 @@ const getConversations = async (req, res, next) => {
         if (conv.lastMessageId) {
           convObj.lastMessage = await Message.findByPk(conv.lastMessageId);
         }
-        return convObj;
+        return decorateConversation(convObj, conv, userId);
       })
     );
 
@@ -104,6 +142,7 @@ const getOrCreateConversation = async (req, res, next) => {
       convObj.lastMessage = await Message.findByPk(conversation.lastMessageId);
     }
 
+    decorateConversation(convObj, conversation, currentUserId);
     return sendSuccess(res, 'Conversation ready.', { conversation: convObj });
   } catch (error) {
     next(error);
@@ -129,8 +168,12 @@ const getMessages = async (req, res, next) => {
       return sendError(res, 'Unauthorized access to conversation.', 403);
     }
 
+    const messageWhere = { conversationId: conversation.id };
+    const deletedAt = getDeletedAt(conversation, userId);
+    if (deletedAt) messageWhere.createdAt = { [Op.gt]: deletedAt };
+
     const messages = await Message.findAll({
-      where: { conversationId: conversation.id },
+      where: messageWhere,
       order: [['createdAt', 'ASC']],
       include: [{ model: User, as: 'sender', attributes: ['id', 'name', 'username', 'avatar'] }],
     });
@@ -173,7 +216,23 @@ const sendMessage = async (req, res, next) => {
     }
 
     const parts = Array.isArray(conversation.participants) ? conversation.participants.map(p => String(p)) : [];
+    if (!parts.includes(String(userId))) {
+      return sendError(res, 'Unauthorized access to conversation.', 403);
+    }
     const otherParticipantId = parts.find(p => p !== String(userId)) || recipientId;
+
+    // Blocked conversation: nobody can send until the blocker unblocks
+    const blockedBy = getBlockedBy(conversation);
+    if (blockedBy.length > 0) {
+      const iBlocked = blockedBy.includes(String(userId));
+      return sendError(
+        res,
+        iBlocked
+          ? 'You blocked this user. Unblock to send messages.'
+          : "You can't send messages in this conversation.",
+        403
+      );
+    }
 
     let media = { url: '', public_id: '' };
     if (req.file) {
@@ -235,9 +294,121 @@ const sendMessage = async (req, res, next) => {
   }
 };
 
+// @desc    Delete a chat (hidden for the current user only; the other person keeps their copy)
+// @route   DELETE /api/chat/conversations/:id
+// @access  Private
+const deleteConversation = async (req, res, next) => {
+  try {
+    const userId = req.user.id || req.user._id;
+    const conversation = await findConversationByIdOrMongoId(req.params.id);
+    if (!conversation) return sendError(res, 'Conversation not found.', 404);
+    if (!loadParticipantUser(conversation, userId)) {
+      return sendError(res, 'Unauthorized access to conversation.', 403);
+    }
+
+    conversation.deletedBy = {
+      ...(conversation.deletedBy && typeof conversation.deletedBy === 'object' ? conversation.deletedBy : {}),
+      [String(userId)]: new Date().toISOString(),
+    };
+    await conversation.save();
+
+    return sendSuccess(res, 'Chat deleted.', { conversationId: conversation.id });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const setBlockState = async (req, res, next, shouldBlock) => {
+  try {
+    const userId = req.user.id || req.user._id;
+    const conversation = await findConversationByIdOrMongoId(req.params.id);
+    if (!conversation) return sendError(res, 'Conversation not found.', 404);
+    if (!loadParticipantUser(conversation, userId)) {
+      return sendError(res, 'Unauthorized access to conversation.', 403);
+    }
+
+    const current = getBlockedBy(conversation);
+    const me = String(userId);
+    conversation.blockedBy = shouldBlock
+      ? Array.from(new Set([...current, me]))
+      : current.filter((b) => b !== me);
+    await conversation.save();
+
+    notifyBlockChange(req, conversation, userId);
+
+    const convObj = decorateConversation(conversation.toJSON(), conversation, userId);
+    return sendSuccess(res, shouldBlock ? 'User blocked.' : 'User unblocked.', { conversation: convObj });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Block the other user in a conversation (no messages either way)
+// @route   POST /api/chat/conversations/:id/block
+// @access  Private
+const blockUser = (req, res, next) => setBlockState(req, res, next, true);
+
+// @desc    Unblock the other user in a conversation
+// @route   DELETE /api/chat/conversations/:id/block
+// @access  Private
+const unblockUser = (req, res, next) => setBlockState(req, res, next, false);
+
+// @desc    Report the other user in a conversation to the admins
+// @route   POST /api/chat/conversations/:id/report
+// @access  Private
+const reportUser = async (req, res, next) => {
+  try {
+    const userId = req.user.id || req.user._id;
+    const { reason, details } = req.body;
+
+    if (!reason || !String(reason).trim()) {
+      return sendError(res, 'Please select a reason for the report.', 400);
+    }
+
+    const conversation = await findConversationByIdOrMongoId(req.params.id);
+    if (!conversation) return sendError(res, 'Conversation not found.', 404);
+    if (!loadParticipantUser(conversation, userId)) {
+      return sendError(res, 'Unauthorized access to conversation.', 403);
+    }
+
+    const otherId = getParticipantIds(conversation).find((p) => p !== String(userId));
+    if (!otherId) return sendError(res, 'No user to report in this conversation.', 400);
+
+    const existing = await Report.findOne({
+      where: {
+        reporterId: userId,
+        targetType: 'user',
+        targetId: String(otherId),
+        conversationId: conversation.id,
+        status: 'pending',
+      },
+    });
+    if (existing) {
+      return sendError(res, 'You have already reported this user. Admins are reviewing it.', 400);
+    }
+
+    const report = await Report.create({
+      reporterId: userId,
+      targetType: 'user',
+      targetId: String(otherId),
+      conversationId: conversation.id,
+      reason: String(reason).trim().slice(0, 100),
+      details: details ? String(details).trim().slice(0, 500) : '',
+    });
+
+    return sendSuccess(res, 'Report submitted. Our admins will review this chat.', { report }, null, 201);
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getConversations,
   getOrCreateConversation,
   getMessages,
   sendMessage,
+  deleteConversation,
+  blockUser,
+  unblockUser,
+  reportUser,
 };

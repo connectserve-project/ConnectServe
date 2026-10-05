@@ -114,6 +114,7 @@ const getEvents = async (req, res, next) => {
       startDate,
       endDate,
       organizerId,
+      upcoming,
       page = 1,
       limit = 9,
       sortBy = 'date_asc',
@@ -143,6 +144,22 @@ const getEvents = async (req, res, next) => {
 
     if (organizerId) {
       where.organizerId = organizerId;
+    }
+
+    // upcoming=true -> hide events that are done (end date / start day already passed, cancelled or completed)
+    if (upcoming === 'true') {
+      const startOfToday = new Date();
+      startOfToday.setHours(0, 0, 0, 0);
+      where.status = { [Op.in]: ['upcoming', 'ongoing'] };
+      where[Op.and] = [
+        ...(where[Op.and] || []),
+        {
+          [Op.or]: [
+            { endDate: { [Op.gte]: startOfToday } },
+            { endDate: null, date: { [Op.gte]: startOfToday } },
+          ],
+        },
+      ];
     }
 
     if (startDate || endDate) {

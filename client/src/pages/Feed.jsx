@@ -70,7 +70,7 @@ export const Feed = ({ onOpenCreatePost }) => {
     const fetchWidgets = async () => {
       try {
         const [eventsRes, leaderRes] = await Promise.all([
-          eventService.getEvents({ limit: 3, sortBy: 'date_asc' }),
+          eventService.getEvents({ limit: 3, sortBy: 'date_asc', upcoming: true }),
           userService.getLeaderboard('all'),
         ]);
         if (eventsRes.success) setRecommendedEvents(eventsRes.data.events || []);
@@ -236,6 +236,11 @@ export const Feed = ({ onOpenCreatePost }) => {
           </div>
 
           <div className="space-y-3">
+            {recommendedEvents.length === 0 && (
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 text-center text-xs font-semibold text-slate-500 dark:text-slate-400">
+                No Upcoming Events
+              </div>
+            )}
             {recommendedEvents.map((evt) => (
               <Link
                 key={evt._id}

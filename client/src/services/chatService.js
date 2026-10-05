@@ -16,6 +16,26 @@ export const chatService = {
     return response.data;
   },
 
+  deleteConversation: async (conversationId) => {
+    const response = await api.delete(`/chat/conversations/${conversationId}`);
+    return response.data;
+  },
+
+  blockUser: async (conversationId) => {
+    const response = await api.post(`/chat/conversations/${conversationId}/block`);
+    return response.data;
+  },
+
+  unblockUser: async (conversationId) => {
+    const response = await api.delete(`/chat/conversations/${conversationId}/block`);
+    return response.data;
+  },
+
+  reportUser: async (conversationId, reason, details = '') => {
+    const response = await api.post(`/chat/conversations/${conversationId}/report`, { reason, details });
+    return response.data;
+  },
+
   sendMessage: async (conversationId, formData) => {
     const response = await api.post(`/chat/conversations/${conversationId}/messages`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },

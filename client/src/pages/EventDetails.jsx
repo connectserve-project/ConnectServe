@@ -28,6 +28,24 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+// An event is "done" once its end date (or, if none, the end of its start day) has passed
+const getEventEndTime = (event) => {
+  const base = new Date(event.endDate || event.date);
+  if (isNaN(base)) return null;
+  const end = new Date(base);
+  end.setHours(23, 59, 59, 999);
+  return end;
+};
+
+const formatDateRange = (start, end) => {
+  const opts = { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' };
+  const s = new Date(start);
+  if (!end) return s.toLocaleDateString('en-US', opts);
+  const e = new Date(end);
+  if (s.toDateString() === e.toDateString()) return s.toLocaleDateString('en-US', opts);
+  return `${s.toLocaleDateString('en-US', opts)} – ${e.toLocaleDateString('en-US', opts)}`;
+};
+
 export const EventDetails = () => {
   const { id } = useParams();
   const { user, isAuthenticated, isVolunteer, isOrganization } = useAuth();
@@ -71,6 +89,15 @@ export const EventDetails = () => {
     e.preventDefault();
     if (!isAuthenticated) {
       navigate('/login');
+      return;
+    }
+
+    if (user?.role === 'admin') {
+      toast.error("Admins can't volunteer for events.");
+      return;
+    }
+    if (user?.role === 'organization') {
+      toast.error("Can't Join Others Events");
       return;
     }
 
@@ -129,6 +156,11 @@ export const EventDetails = () => {
   const slotsRemaining = Math.max(0, (event.volunteerSlots || 0) - (event.registeredCount || 0));
   const isOrganizer = user && event.organizer?._id === user._id;
   const isAdminUser = user?.role === 'admin';
+  const eventEnd = getEventEndTime(event);
+  const isEventDone =
+    event.status === 'completed' ||
+    event.status === 'cancelled' ||
+    (eventEnd && eventEnd < new Date());
 
   const handleAdminDeleteEvent = async () => {
     if (!window.confirm(`Delete event "${event.title}"? This removes all its registrations and cannot be undone.`)) return;
@@ -185,42 +217,44 @@ export const EventDetails = () => {
         {/* Left Info Column */}
         <div className="lg:col-span-8 space-y-8">
           {/* Key Metrics Bar */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-white dark:bg-slate-900 p-4 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-card">
-            <div className="flex items-center gap-2.5 p-2">
-              <Calendar className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-white dark:bg-slate-900 p-4 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-card">
+            <div className="flex items-start gap-3 p-2">
+              <Calendar className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
               <div className="min-w-0">
-                <p className="text-[10px] text-slate-400 uppercase font-semibold">Date</p>
-                <p className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white truncate">
-                  {formatDate(event.date)}
+                <p className="text-[10px] text-slate-400 uppercase font-semibold">
+                  {event.endDate ? 'Dates' : 'Date'}
+                </p>
+                <p className="font-bold text-sm text-slate-900 dark:text-white break-words">
+                  {formatDateRange(event.date, event.endDate)}
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2.5 p-2">
-              <Clock className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+            <div className="flex items-start gap-3 p-2">
+              <Clock className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
               <div className="min-w-0">
                 <p className="text-[10px] text-slate-400 uppercase font-semibold">Time</p>
-                <p className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white truncate">
+                <p className="font-bold text-sm text-slate-900 dark:text-white break-words">
                   {event.time}
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2.5 p-2">
-              <Award className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+            <div className="flex items-start gap-3 p-2">
+              <Award className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
               <div className="min-w-0">
                 <p className="text-[10px] text-slate-400 uppercase font-semibold">Hours Granted</p>
-                <p className="font-extrabold text-xs sm:text-sm text-emerald-600 dark:text-emerald-400 truncate">
+                <p className="font-extrabold text-sm text-emerald-600 dark:text-emerald-400 break-words">
                   {event.hoursGranted} Verified hrs
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2.5 p-2">
-              <Users className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+            <div className="flex items-start gap-3 p-2">
+              <Users className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
               <div className="min-w-0">
                 <p className="text-[10px] text-slate-400 uppercase font-semibold">Open Slots</p>
-                <p className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white truncate">
+                <p className="font-bold text-sm text-slate-900 dark:text-white break-words">
                   {slotsRemaining} / {event.volunteerSlots}
                 </p>
               </div>
@@ -370,6 +404,18 @@ export const EventDetails = () => {
             ) : isOrganizer ? (
               <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-xs text-emerald-800 dark:text-emerald-300 font-medium">
                 You are the organizer of this event. Manage applicants from your Organizer Dashboard.
+              </div>
+            ) : isEventDone ? (
+              <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-xs text-rose-600 dark:text-rose-400 font-bold text-center">
+                Event is done, can't join.
+              </div>
+            ) : isOrganization ? (
+              <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-xs text-rose-600 dark:text-rose-400 font-bold text-center">
+                Can't Join Others Events
+              </div>
+            ) : isAdminUser ? (
+              <div className="p-4 rounded-2xl bg-slate-100 dark:bg-slate-800 text-xs text-slate-600 dark:text-slate-300 font-medium text-center">
+                Admins can't volunteer for events.
               </div>
             ) : slotsRemaining === 0 ? (
               <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 text-xs text-amber-800 dark:text-amber-300 font-semibold text-center">

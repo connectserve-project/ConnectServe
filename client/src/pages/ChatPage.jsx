@@ -39,6 +39,46 @@ export const ChatPage = () => {
     }
   };
 
+  // Re-fetch conversations and refresh the open chat's block flags (never auto-opens a chat)
+  const refreshConversations = async () => {
+    try {
+      const res = await chatService.getConversations();
+      if (res.success && res.data) {
+        const list = res.data.conversations || [];
+        setConversations(list);
+        setActiveConversation((prev) => {
+          if (!prev) return prev;
+          const fresh = list.find((c) => String(c._id ?? c.id) === String(prev._id ?? prev.id));
+          return fresh ? { ...prev, ...fresh } : prev;
+        });
+      }
+    } catch (err) {
+      // ignore - list stays as is
+    }
+  };
+
+  const handleConversationDeleted = (conversationId) => {
+    setConversations((prev) => prev.filter((c) => String(c._id ?? c.id) !== String(conversationId)));
+    setActiveConversation(null);
+  };
+
+  const handleConversationUpdated = (updated) => {
+    setConversations((prev) =>
+      prev.map((c) => (String(c._id ?? c.id) === String(updated._id ?? updated.id) ? { ...c, ...updated } : c))
+    );
+    setActiveConversation((prev) =>
+      prev && String(prev._id ?? prev.id) === String(updated._id ?? updated.id) ? { ...prev, ...updated } : prev
+    );
+  };
+
+  // The other person blocked / unblocked you -> update the open chat live
+  useEffect(() => {
+    if (!socket) return undefined;
+    const onBlockChanged = () => refreshConversations();
+    socket.on('conversation_block_changed', onBlockChanged);
+    return () => socket.off('conversation_block_changed', onBlockChanged);
+  }, [socket]);
+
   // Keep the conversation list (last message / ordering) live
   useEffect(() => {
     if (!socket) return;
@@ -148,6 +188,9 @@ export const ChatPage = () => {
             conversation={activeConversation}
             currentUserId={user?._id}
             onBack={() => setActiveConversation(null)}
+            onConversationDeleted={handleConversationDeleted}
+            onConversationUpdated={handleConversationUpdated}
+            onRefreshConversations={refreshConversations}
           />
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-slate-400">

@@ -37,6 +37,11 @@ export const adminService = {
     return response.data;
   },
 
+  getReportMessages: async (id) => {
+    const response = await api.get(`/admin/reports/${id}/messages`);
+    return response.data;
+  },
+
   resolveReport: async (id, action, resolutionNotes = '') => {
     const response = await api.put(`/admin/reports/${id}`, { action, resolutionNotes });
     return response.data;

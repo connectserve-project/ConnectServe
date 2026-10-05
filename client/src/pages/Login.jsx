@@ -41,10 +41,10 @@ export const Login = () => {
     if (result.success) {
       if (result.user?.role === 'admin') {
         navigate('/admin', { replace: true });
-      } 
+      }
       else if (result.user?.role === 'organization') {
-           navigate('/org/dashboard', { replace: true }); 
-      } 
+        navigate('/org/dashboard', { replace: true });
+      }
       else {
         navigate(from, { replace: true });
       }
@@ -119,9 +119,6 @@ export const Login = () => {
       <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-10 border border-slate-200 dark:border-slate-800 shadow-xl space-y-6">
         {/* Header */}
         <div className="text-center space-y-2">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-400 text-white flex items-center justify-center mx-auto shadow-md shadow-emerald-500/20">
-            <Sparkles className="w-6 h-6" />
-          </div>
           <h1 className="text-2xl font-black text-slate-900 dark:text-white">
             Welcome Back
           </h1>

@@ -5,13 +5,18 @@ import { VerifiedOrgBadge } from '../common/Badge';
 import { MessageItem } from './MessageItem';
 import { chatService } from '../../services/chatService';
 import { useSocket } from '../../hooks/useSocket';
-import { Send, Image, X, ArrowLeft, Loader2 } from 'lucide-react';
+import { Modal } from '../common/Modal';
+import { Button } from '../common/Button';
+import { Send, Image, X, ArrowLeft, Loader2, MoreVertical, Trash2, Ban, UserCheck, Flag } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export const ChatWindow = ({
   conversation,
   currentUserId,
   onBack,
+  onConversationDeleted,
+  onConversationUpdated,
+  onRefreshConversations,
 }) => {
   const { socket } = useSocket();
   const [messages, setMessages] = useState([]);
@@ -24,6 +29,13 @@ export const ChatWindow = ({
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const typingHideRef = useRef(null);
+  const menuRef = useRef(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuBusy, setMenuBusy] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [reportDetails, setReportDetails] = useState('');
+  const [isReporting, setIsReporting] = useState(false);
 
   const otherParticipant = conversation?.participants?.find(
     p => String(p._id ?? p.id) !== String(currentUserId)
@@ -104,6 +116,103 @@ export const ChatWindow = ({
     scrollToBottom();
   }, [messages, isTyping]);
 
+  // Close the 3-dot menu on outside click
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    const onDown = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('touchstart', onDown);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('touchstart', onDown);
+    };
+  }, [menuOpen]);
+
+  const REPORT_REASONS = [
+    'Spam',
+    'Harassment or bullying',
+    'Inappropriate content',
+    'Scam or fraud',
+    'Fake account / impersonation',
+    'Other',
+  ];
+
+  const handleDeleteChat = async () => {
+    setMenuOpen(false);
+    if (!window.confirm('Delete this chat? It will be removed from your messages.')) return;
+    setMenuBusy(true);
+    try {
+      const res = await chatService.deleteConversation(conversation._id);
+      if (res.success) {
+        toast.success('Chat deleted.');
+        if (onConversationDeleted) onConversationDeleted(conversation._id);
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to delete chat.');
+    } finally {
+      setMenuBusy(false);
+    }
+  };
+
+  const handleToggleBlock = async () => {
+    setMenuOpen(false);
+    const blocking = !conversation.isBlockedByMe;
+    if (
+      blocking &&
+      !window.confirm(`Block ${otherParticipant?.name || 'this user'}? You won't be able to send or receive messages in this chat.`)
+    ) {
+      return;
+    }
+    setMenuBusy(true);
+    try {
+      const res = blocking
+        ? await chatService.blockUser(conversation._id)
+        : await chatService.unblockUser(conversation._id);
+      if (res.success) {
+        toast.success(blocking ? 'User blocked.' : 'User unblocked.');
+        if (onConversationUpdated) {
+          onConversationUpdated({
+            ...conversation,
+            isBlockedByMe: res.data.conversation.isBlockedByMe,
+            isBlockedByOther: res.data.conversation.isBlockedByOther,
+          });
+        }
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Action failed.');
+    } finally {
+      setMenuBusy(false);
+    }
+  };
+
+  const openReportModal = () => {
+    setMenuOpen(false);
+    setReportReason('');
+    setReportDetails('');
+    setShowReportModal(true);
+  };
+
+  const handleSubmitReport = async () => {
+    if (!reportReason) {
+      toast.error('Please select a reason.');
+      return;
+    }
+    setIsReporting(true);
+    try {
+      const res = await chatService.reportUser(conversation._id, reportReason, reportDetails);
+      if (res.success) {
+        toast.success(res.message || 'Report submitted.');
+        setShowReportModal(false);
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to submit report.');
+    } finally {
+      setIsReporting(false);
+    }
+  };
+
   const handleInputChange = (e) => {
     setInputText(e.target.value);
     if (socket && conversation?._id) {
@@ -147,7 +256,9 @@ export const ChatWindow = ({
         handleRemoveImage();
       }
     } catch (err) {
-      toast.error('Failed to send message.');
+      toast.error(err.response?.data?.message || 'Failed to send message.');
+      // Probably blocked meanwhile - pull the latest block state
+      if (err.response?.status === 403 && onRefreshConversations) onRefreshConversations();
     } finally {
       setIsSending(false);
     }
@@ -191,6 +302,57 @@ export const ChatWindow = ({
               </p>
             </div>
           </Link>
+        </div>
+
+        {/* 3-dot options menu */}
+        <div className="relative" ref={menuRef}>
+          <button
+            type="button"
+            onClick={() => setMenuOpen((o) => !o)}
+            disabled={menuBusy}
+            aria-label="Chat options"
+            className="p-2 rounded-xl text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center disabled:opacity-50"
+          >
+            <MoreVertical className="w-5 h-5" />
+          </button>
+
+          {menuOpen && (
+            <div className="absolute right-0 top-full mt-1 w-48 z-30 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl py-1.5 animate-fadeIn">
+              <button
+                type="button"
+                onClick={handleDeleteChat}
+                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete chat
+              </button>
+              <button
+                type="button"
+                onClick={handleToggleBlock}
+                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+              >
+                {conversation.isBlockedByMe ? (
+                  <>
+                    <UserCheck className="w-4 h-4 text-emerald-600" />
+                    Unblock user
+                  </>
+                ) : (
+                  <>
+                    <Ban className="w-4 h-4" />
+                    Block user
+                  </>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={openReportModal}
+                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
+              >
+                <Flag className="w-4 h-4" />
+                Report user
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -241,7 +403,21 @@ export const ChatWindow = ({
         </div>
       )}
 
-      {/* Message Input Footer */}
+      {/* Message Input Footer (replaced by a notice while blocked) */}
+      {conversation.isBlockedByMe ? (
+        <div className="p-3 sm:p-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 bg-slate-50 dark:bg-slate-950/40">
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            You blocked this user. You can't send or receive messages.
+          </p>
+          <Button size="sm" variant="secondary" icon={UserCheck} onClick={handleToggleBlock} disabled={menuBusy}>
+            Unblock
+          </Button>
+        </div>
+      ) : conversation.isBlockedByOther ? (
+        <div className="p-4 border-t border-slate-200 dark:border-slate-800 text-center text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-950/40">
+          You can't send messages in this conversation.
+        </div>
+      ) : (
       <form
         onSubmit={handleSend}
         className="p-3 sm:p-4 border-t border-slate-200 dark:border-slate-800 flex items-center gap-2"
@@ -276,6 +452,62 @@ export const ChatWindow = ({
           )}
         </button>
       </form>
+      )}
+
+      {/* Report modal */}
+      <Modal
+        isOpen={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        title={`Report ${otherParticipant?.name || 'user'}`}
+        maxWidth="max-w-md"
+      >
+        <div className="space-y-4">
+          <p className="text-xs text-slate-500">
+            Admins will be able to read this conversation and take action. Choose the reason that fits best.
+          </p>
+
+          <div className="space-y-2">
+            {REPORT_REASONS.map((r) => (
+              <label
+                key={r}
+                className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-xs font-semibold cursor-pointer transition-colors ${
+                  reportReason === r
+                    ? 'border-rose-400 bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300'
+                    : 'border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="report-reason"
+                  value={r}
+                  checked={reportReason === r}
+                  onChange={() => setReportReason(r)}
+                  className="accent-rose-600"
+                />
+                {r}
+              </label>
+            ))}
+          </div>
+
+          <textarea
+            rows="3"
+            maxLength={500}
+            placeholder="Add more details (optional)"
+            value={reportDetails}
+            onChange={(e) => setReportDetails(e.target.value)}
+            className="w-full p-3 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-rose-500"
+          />
+
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setShowReportModal(false)}>
+              Cancel
+            </Button>
+            <Button variant="danger" size="sm" icon={Flag} onClick={handleSubmitReport} isLoading={isReporting}>
+              Submit report
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

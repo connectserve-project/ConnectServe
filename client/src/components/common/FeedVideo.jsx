@@ -228,8 +228,6 @@ export const FeedVideo = ({ src, className = '', videoClassName = 'w-full h-full
     }, 250);
   };
 
-  const showMuted = muted || !isActive;
-
   return (
     <div
       ref={containerRef}
@@ -280,11 +278,6 @@ export const FeedVideo = ({ src, className = '', videoClassName = 'w-full h-full
           </div>
         </div>
       )}
-
-      {/* Mute badge */}
-      <div className="absolute bottom-3 right-3 w-8 h-8 rounded-full bg-black/60 flex items-center justify-center pointer-events-none">
-        {showMuted ? <VolumeX className="w-4 h-4 text-white" /> : <Volume2 className="w-4 h-4 text-white" />}
-      </div>
     </div>
   );
 };

@@ -313,9 +313,6 @@ const getMe = async (req, res, next) => {
   try {
     const userId = req.user.id || req.user._id;
     let user = await User.findByPk(userId);
-    if (!user && req.user.mongoId) {
-      user = await User.findOne({ where: { mongoId: req.user.mongoId } });
-    }
     if (!user) {
       return sendError(res, 'User not found.', 404);
     }
@@ -347,9 +344,6 @@ const refreshToken = async (req, res, next) => {
     let user = null;
     if (typeof decoded.id === 'number' || !isNaN(Number(decoded.id))) {
       user = await User.findByPk(decoded.id);
-    }
-    if (!user) {
-      user = await User.findOne({ where: { mongoId: String(decoded.id) } });
     }
 
     if (!user || user.isBanned || !user.isActive) {

@@ -3,16 +3,12 @@ const { Op } = require('sequelize');
 const { uploadToCloudinary, deleteFromCloudinary } = require('../config/cloudinary');
 const { sendSuccess, sendError } = require('../utils/responseHandler');
 
-const findUserByIdOrMongoIdOrUsername = async (idOrUsername) => {
+const findUserByIdOrUsername = async (idOrUsername) => {
   if (typeof idOrUsername === 'number' || !isNaN(Number(idOrUsername))) {
     const user = await User.findByPk(idOrUsername);
     if (user) return user;
   }
-  let user = await User.findOne({ where: { mongoId: String(idOrUsername) } });
-  if (!user) {
-    user = await User.findOne({ where: { username: String(idOrUsername).toLowerCase() } });
-  }
-  return user;
+  return await User.findOne({ where: { username: String(idOrUsername).toLowerCase() } });
 };
 
 // @desc    Get user profile by ID or username
@@ -21,7 +17,7 @@ const findUserByIdOrMongoIdOrUsername = async (idOrUsername) => {
 const getProfile = async (req, res, next) => {
   try {
     const { idOrUsername } = req.params;
-    const user = await findUserByIdOrMongoIdOrUsername(idOrUsername);
+    const user = await findUserByIdOrUsername(idOrUsername);
 
     if (!user || user.isBanned) {
       return sendError(res, 'User profile not found.', 404);
@@ -261,7 +257,7 @@ const toggleFollowUser = async (req, res, next) => {
     const targetUserIdParam = req.params.id;
     const currentUserId = req.user.id || req.user._id;
 
-    const targetUser = await findUserByIdOrMongoIdOrUsername(targetUserIdParam);
+    const targetUser = await findUserByIdOrUsername(targetUserIdParam);
     const currentUser = await User.findByPk(currentUserId);
 
     if (!targetUser) {

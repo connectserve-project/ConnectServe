@@ -7,11 +7,6 @@ const Post = sequelize.define('Post', {
     primaryKey: true,
     autoIncrement: true,
   },
-  mongoId: {
-    type: DataTypes.STRING(36),
-    unique: true,
-    allowNull: true,
-  },
   authorId: {
     type: DataTypes.INTEGER,
     allowNull: false,

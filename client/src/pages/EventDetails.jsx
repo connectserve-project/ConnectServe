@@ -192,7 +192,7 @@ export const EventDetails = () => {
           <FeedVideo src={event.banner.url} className="w-full h-80 sm:h-96" />
         ) : (
           <img
-            src={event.banner?.url || 'https://images.unsplash.com/photo-1559027615-cd4628902d4a?w=1200&auto=format&fit=crop&q=80'}
+            src={event.banner?.url || 'https://res.cloudinary.com/os27otij/image/upload/v1790353591/connectserve/profiles/tn1by19pxjdlrzb8odxa.png'}
             alt={event.title}
             className="w-full h-80 sm:h-96 object-cover opacity-80"
             crossOrigin="anonymous"

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { eventService } from '../services/eventService';
+import { useAuth } from '../hooks/useAuth';
 import { EVENT_CATEGORIES, POPULAR_SKILLS } from '../utils/constants';
 import { Button } from '../components/common/Button';
 import { Image, X, Calendar, Clock, MapPin, Users, Award, ArrowLeft, Sparkles } from 'lucide-react';
@@ -12,6 +13,10 @@ export const CreateEditEvent = () => {
   const { id } = useParams();
   const isEditing = !!id;
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const dashboardPath = user?.role === 'admin' ? '/admin' : '/org/dashboard';
+  const dashboardLabel = user?.role === 'admin' ? 'Admin Center' : 'Organizer Dashboard';
+
 
   const [formData, setFormData] = useState({
     title: '',
@@ -155,13 +160,6 @@ export const CreateEditEvent = () => {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 animate-fadeIn pb-12">
-      <Link
-        to="/org/dashboard"
-        className="inline-flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-white"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        <span>Back to Organizer Dashboard</span>
-      </Link>
 
       <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-10 border border-slate-200 dark:border-slate-800 shadow-card space-y-6">
         <div>
@@ -402,11 +400,10 @@ export const CreateEditEvent = () => {
                     type="button"
                     key={sk}
                     onClick={() => (isSelected ? handleRemoveSkill(sk) : handleAddSkill(sk))}
-                    className={`px-3 py-1 text-xs font-semibold rounded-lg transition-colors min-h-[38px] ${
-                      isSelected
+                    className={`px-3 py-1 text-xs font-semibold rounded-lg transition-colors min-h-[38px] ${isSelected
                         ? 'bg-emerald-600 text-white shadow-sm'
                         : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
-                    }`}
+                      }`}
                   >
                     {isSelected ? `✓ ${sk}` : `+ ${sk}`}
                   </button>
@@ -417,10 +414,17 @@ export const CreateEditEvent = () => {
 
           {/* Submit */}
           <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3">
-            <Link to="/org/dashboard">
-              <Button variant="ghost" size="md">
-                Cancel
-              </Button>
+            <Link
+              to={dashboardPath}
+              className="inline-flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-white"
+            >
+            <Button
+              type="submit"
+              variant="secondary"
+              size="md">
+              <p>Back to {dashboardLabel}</p>
+            </Button>
+
             </Link>
             <Button
               type="submit"

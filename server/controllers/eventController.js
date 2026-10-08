@@ -3,13 +3,13 @@ const { Op } = require('sequelize');
 const { uploadToCloudinary, deleteFromCloudinary, toPlayableVideoUrl } = require('../config/cloudinary');
 const { sendSuccess, sendError } = require('../utils/responseHandler');
 
-// Helper to resolve model by PK or mongoId
-const findEventByIdOrMongoId = async (id, options = {}) => {
+// Helper to resolve model by PK 
+const findEventById = async (id, options = {}) => {
   if (typeof id === 'number' || !isNaN(Number(id))) {
     const found = await Event.findByPk(id, options);
     if (found) return found;
   }
-  return await Event.findOne({ where: { mongoId: String(id) }, ...options });
+  return null;
 };
 
 // @desc    Create a new community service event
@@ -210,7 +210,7 @@ const getEvents = async (req, res, next) => {
 // @access  Public (Optional Auth)
 const getEventById = async (req, res, next) => {
   try {
-    const event = await findEventByIdOrMongoId(req.params.id, {
+    const event = await findEventById(req.params.id, {
       include: [
         {
           model: User,
@@ -259,7 +259,7 @@ const getEventById = async (req, res, next) => {
 // @access  Private (Event Organizer / Admin)
 const updateEvent = async (req, res, next) => {
   try {
-    const event = await findEventByIdOrMongoId(req.params.id);
+    const event = await findEventById(req.params.id);
     if (!event) {
       return sendError(res, 'Event not found.', 404);
     }
@@ -333,7 +333,7 @@ const updateEvent = async (req, res, next) => {
 // @access  Private (Event Organizer / Admin)
 const deleteEvent = async (req, res, next) => {
   try {
-    const event = await findEventByIdOrMongoId(req.params.id);
+    const event = await findEventById(req.params.id);
     if (!event) {
       return sendError(res, 'Event not found.', 404);
     }
@@ -368,7 +368,7 @@ const addEventReview = async (req, res, next) => {
     const eventIdParam = req.params.id;
     const userId = req.user.id || req.user._id;
 
-    const event = await findEventByIdOrMongoId(eventIdParam);
+    const event = await findEventById(eventIdParam);
     if (!event) {
       return sendError(res, 'Event not found.', 404);
     }

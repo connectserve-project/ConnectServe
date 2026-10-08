@@ -4,6 +4,8 @@ import { AnalyticsCharts } from '../components/admin/AnalyticsCharts';
 import { UserManagementTable } from '../components/admin/UserManagementTable';
 import { OrgVerificationTable } from '../components/admin/OrgVerificationTable';
 import { ContentModerationTable } from '../components/admin/ContentModerationTable';
+import { AdminEventsTable } from '../components/admin/AdminEventsTable';
+import { eventService } from '../services/eventService';
 import {
   Shield,
   Users,
@@ -15,6 +17,7 @@ import {
   Building2,
   Clock,
   RefreshCw,
+  CalendarDays,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -24,22 +27,25 @@ export const AdminDashboard = () => {
   const [users, setUsers] = useState([]);
   const [organizations, setOrganizations] = useState([]);
   const [reports, setReports] = useState([]);
+  const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const fetchAdminData = async () => {
     setLoading(true);
     try {
-      const [analyticsRes, usersRes, orgsRes, reportsRes] = await Promise.all([
+      const [analyticsRes, usersRes, orgsRes, reportsRes, eventsRes] = await Promise.all([
         adminService.getAnalytics(),
         adminService.getAllUsers({ limit: 50 }),
         adminService.getOrganizations(),
         adminService.getModerationQueue(),
+        eventService.getEvents({ limit: 100, sortBy: 'date_desc' }),
       ]);
 
       if (analyticsRes.success) setAnalytics(analyticsRes.data);
       if (usersRes.success) setUsers(usersRes.data?.users || []);
       if (orgsRes.success) setOrganizations(orgsRes.data?.organizations || []);
       if (reportsRes.success) setReports(reportsRes.data?.reports || []);
+      if (eventsRes.success) setEvents(eventsRes.data?.events || []);
     } catch (err) {
       toast.error('Failed to load admin analytics.');
     } finally {
@@ -128,6 +134,7 @@ export const AdminDashboard = () => {
           { id: 'users', label: `Users (${users.length})`, icon: Users },
           { id: 'orgs', label: `NGO Verifications (${organizations.length})`, icon: Building2 },
           { id: 'moderation', label: `Moderation (${reports.length})`, icon: Flag },
+          { id: 'events', label: `Events (${events.length})`, icon: CalendarDays },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -162,6 +169,10 @@ export const AdminDashboard = () => {
 
       {activeTab === 'moderation' && (
         <ContentModerationTable reports={reports} onReportResolved={fetchAdminData} />
+      )}
+
+      {activeTab === 'events' && (
+        <AdminEventsTable events={events} onEventsChanged={fetchAdminData} />
       )}
     </div>
   );

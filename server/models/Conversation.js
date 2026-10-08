@@ -7,11 +7,6 @@ const Conversation = sequelize.define('Conversation', {
     primaryKey: true,
     autoIncrement: true,
   },
-  mongoId: {
-    type: DataTypes.STRING(36),
-    unique: true,
-    allowNull: true,
-  },
   participants: {
     type: DataTypes.JSON,
     defaultValue: [],

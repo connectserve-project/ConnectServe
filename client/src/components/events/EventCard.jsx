@@ -49,7 +49,7 @@ export const EventCard = ({ event, onDeleted }) => {
           <FeedVideo src={event.banner.url} className="w-full h-full" />
         ) : (
           <img
-            src={event.banner?.url || 'https://images.unsplash.com/photo-1559027615-cd4628902d4a?w=800&auto=format&fit=crop&q=80'}
+            src={event.banner?.url || 'https://res.cloudinary.com/os27otij/image/upload/v1790353591/connectserve/profiles/tn1by19pxjdlrzb8odxa.png'}
             alt={event.title}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
             loading="lazy"

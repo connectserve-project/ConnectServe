@@ -63,7 +63,7 @@ export const Events = () => {
         </div>
         {canCreateEvent && (
           <Link
-            to="/org/create-event"
+            to="/create-event"
             className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold shadow-sm transition-colors self-start sm:self-auto flex-shrink-0"
           >
             <PlusCircle className="w-4 h-4" />

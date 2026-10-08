@@ -3,12 +3,12 @@ const { Op } = require('sequelize');
 const { sendSuccess, sendError } = require('../utils/responseHandler');
 const { sendOrgVerifiedEmail, sendAccountBannedEmail, sendAccountDeletedEmail } = require('../utils/emailService');
 
-const findUserByIdOrMongoId = async (id) => {
+const findUserById = async (id) => {
   if (typeof id === 'number' || !isNaN(Number(id))) {
     const user = await User.findByPk(id);
     if (user) return user;
   }
-  return await User.findOne({ where: { mongoId: String(id) } });
+  return null;
 };
 
 // @desc    Get platform-wide analytics and charts data
@@ -134,7 +134,7 @@ const getAllUsers = async (req, res, next) => {
 const updateUserStatus = async (req, res, next) => {
   try {
     const { isBanned, isActive, role, reason } = req.body;
-    const user = await findUserByIdOrMongoId(req.params.id);
+    const user = await findUserById(req.params.id);
 
     if (!user) {
       return sendError(res, 'User not found.', 404);
@@ -195,7 +195,7 @@ const getOrganizations = async (req, res, next) => {
 const verifyOrganization = async (req, res, next) => {
   try {
     const { isVerified } = req.body;
-    const org = await findUserByIdOrMongoId(req.params.id);
+    const org = await findUserById(req.params.id);
 
     if (!org || org.role !== 'organization') {
       return sendError(res, 'Organization not found.', 404);
@@ -280,9 +280,6 @@ const getModerationQueue = async (req, res, next) => {
 const getReportMessages = async (req, res, next) => {
   try {
     let report = await Report.findByPk(req.params.id);
-    if (!report) {
-      report = await Report.findOne({ where: { mongoId: String(req.params.id) } });
-    }
     if (!report) return sendError(res, 'Report not found.', 404);
     if (!report.conversationId) {
       return sendError(res, 'This report has no chat attached.', 400);
@@ -312,16 +309,13 @@ const resolveReport = async (req, res, next) => {
   try {
     const { action, resolutionNotes } = req.body;
     let report = await Report.findByPk(req.params.id);
-    if (!report) {
-      report = await Report.findOne({ where: { mongoId: String(req.params.id) } });
-    }
 
     if (!report) {
       return sendError(res, 'Report not found.', 404);
     }
 
     if (action === 'warn_user' || action === 'ban_user') {
-      const targetUser = report.targetType === 'user' ? await findUserByIdOrMongoId(report.targetId) : null;
+      const targetUser = report.targetType === 'user' ? await findUserById(report.targetId) : null;
       if (!targetUser) {
         return sendError(res, 'Reported user not found.', 404);
       }
@@ -390,7 +384,7 @@ const resolveReport = async (req, res, next) => {
 const deleteUser = async (req, res, next) => {
   try {
     const { reason } = req.body; // NEW: reason sent from admin panel
-    const user = await findUserByIdOrMongoId(req.params.id);
+    const user = await findUserById(req.params.id);
 
     if (!user) {
       return sendError(res, 'User not found.', 404);

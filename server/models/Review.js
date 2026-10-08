@@ -7,11 +7,6 @@ const Review = sequelize.define('Review', {
     primaryKey: true,
     autoIncrement: true,
   },
-  mongoId: {
-    type: DataTypes.STRING(36),
-    unique: true,
-    allowNull: true,
-  },
   eventId: {
     type: DataTypes.INTEGER,
     allowNull: false,

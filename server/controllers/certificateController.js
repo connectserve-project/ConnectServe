@@ -1,12 +1,12 @@
 const { Certificate, Event, User } = require('../models');
 const { sendSuccess, sendError } = require('../utils/responseHandler');
 
-const findCertificateByIdOrMongoId = async (id, options = {}) => {
+const findCertificateById = async (id, options = {}) => {
   if (typeof id === 'number' || !isNaN(Number(id))) {
     const cert = await Certificate.findByPk(id, options);
     if (cert) return cert;
   }
-  return await Certificate.findOne({ where: { mongoId: String(id) }, ...options });
+  return null;
 };
 
 // @desc    Get all certificates earned by logged in user
@@ -62,7 +62,7 @@ const verifyCertificate = async (req, res, next) => {
 // @access  Private (Owner or Admin)
 const getCertificateById = async (req, res, next) => {
   try {
-    const certificate = await findCertificateByIdOrMongoId(req.params.id, {
+    const certificate = await findCertificateById(req.params.id, {
       include: [
         { model: User, as: 'user', attributes: ['id', 'name', 'username', 'avatar'] },
         { model: Event, as: 'event', attributes: ['id', 'title', 'date', 'location', 'category'] },

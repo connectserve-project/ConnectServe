@@ -181,7 +181,7 @@ export default function App() {
                     }
                   />
                   <Route
-                    path="/org/create-event"
+                    path="/create-event"
                     element={
                       <ProtectedRoute allowedRoles={['organization', 'admin']}>
                         <CreateEditEvent />

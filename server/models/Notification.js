@@ -7,11 +7,6 @@ const Notification = sequelize.define('Notification', {
     primaryKey: true,
     autoIncrement: true,
   },
-  mongoId: {
-    type: DataTypes.STRING(36),
-    unique: true,
-    allowNull: true,
-  },
   recipientId: {
     type: DataTypes.INTEGER,
     allowNull: false,

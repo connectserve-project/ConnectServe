@@ -1,5 +1,6 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useParams } from 'react-router-dom';
+import { Profile } from '../../pages/Profile';
 import { useAuth } from '../../hooks/useAuth';
 import { Avatar } from '../common/Avatar';
 import { VerifiedOrgBadge, AchievementBadge } from '../common/Badge';
@@ -36,7 +37,9 @@ export const Sidebar = ({ onOpenCreatePost, className = '' }) => {
       {isAuthenticated && user && (
         <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200 dark:border-slate-800 shadow-card">
           <div className="flex items-center gap-3">
+            <a href = {`/profile/${user.username || user._id}`}>
             <Avatar src={user.avatar} alt={user.name} size="lg" isOrg={user.role === 'organization'} />
+            </a>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1">
                 <h4 className="font-bold text-sm text-slate-900 dark:text-white truncate">

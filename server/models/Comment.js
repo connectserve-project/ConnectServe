@@ -7,11 +7,6 @@ const Comment = sequelize.define('Comment', {
     primaryKey: true,
     autoIncrement: true,
   },
-  mongoId: {
-    type: DataTypes.STRING(36),
-    unique: true,
-    allowNull: true,
-  },
   postId: {
     type: DataTypes.INTEGER,
     allowNull: false,

@@ -7,11 +7,6 @@ const Certificate = sequelize.define('Certificate', {
     primaryKey: true,
     autoIncrement: true,
   },
-  mongoId: {
-    type: DataTypes.STRING(36),
-    unique: true,
-    allowNull: true,
-  },
   certificateCode: {
     type: DataTypes.STRING(50),
     allowNull: false,

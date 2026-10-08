@@ -4,12 +4,12 @@ const { uploadToCloudinary, deleteFromCloudinary, toPlayableVideoUrl } = require
 const { sendSuccess, sendError } = require('../utils/responseHandler');
 const { sendEventTaggedEmail } = require('../utils/emailService');
 
-const findPostByIdOrMongoId = async (id, options = {}) => {
+const findPostById = async (id, options = {}) => {
   if (typeof id === 'number' || !isNaN(Number(id))) {
     const found = await Post.findByPk(id, options);
     if (found) return found;
   }
-  return await Post.findOne({ where: { mongoId: String(id) }, ...options });
+  return null;
 };
 
 // Helper to attach real-time comments count to post JSON objects
@@ -209,7 +209,7 @@ const getExplorePosts = async (req, res, next) => {
 // @access  Public
 const getPostById = async (req, res, next) => {
   try {
-    const postInstance = await findPostByIdOrMongoId(req.params.id, {
+    const postInstance = await findPostById(req.params.id, {
       include: [
         { model: User, as: 'author', attributes: ['id', 'name', 'username', 'avatar', 'role', 'orgDetails'] },
         { model: Event, as: 'eventTag', attributes: ['id', 'title', 'date', 'category', 'banner', 'location'] },
@@ -241,7 +241,7 @@ const getPostById = async (req, res, next) => {
 // @access  Private
 const toggleLikePost = async (req, res, next) => {
   try {
-    const post = await findPostByIdOrMongoId(req.params.id);
+    const post = await findPostById(req.params.id);
     if (!post) {
       return sendError(res, 'Post not found.', 404);
     }
@@ -296,7 +296,7 @@ const addComment = async (req, res, next) => {
       return sendError(res, 'Comment text is required.', 400);
     }
 
-    const post = await findPostByIdOrMongoId(req.params.id);
+    const post = await findPostById(req.params.id);
     if (!post) {
       return sendError(res, 'Post not found.', 404);
     }
@@ -363,7 +363,7 @@ const deleteComment = async (req, res, next) => {
 
     await comment.destroy();
 
-    const post = await findPostByIdOrMongoId(postId);
+    const post = await findPostById(postId);
     if (post) {
       const realCount = await Comment.count({ where: { postId: post.id } });
       post.commentsCount = realCount;
@@ -381,7 +381,7 @@ const deleteComment = async (req, res, next) => {
 // @access  Private
 const deletePost = async (req, res, next) => {
   try {
-    const post = await findPostByIdOrMongoId(req.params.id);
+    const post = await findPostById(req.params.id);
     if (!post) {
       return sendError(res, 'Post not found.', 404);
     }
@@ -415,7 +415,7 @@ const deletePost = async (req, res, next) => {
 // @access  Private
 const sharePost = async (req, res, next) => {
   try {
-    const post = await findPostByIdOrMongoId(req.params.id);
+    const post = await findPostById(req.params.id);
     if (!post) {
       return sendError(res, 'Post not found.', 404);
     }
@@ -433,7 +433,7 @@ const sharePost = async (req, res, next) => {
 const reportPost = async (req, res, next) => {
   try {
     const { reason, details } = req.body;
-    const post = await findPostByIdOrMongoId(req.params.id);
+    const post = await findPostById(req.params.id);
     if (!post) {
       return sendError(res, 'Post not found.', 404);
     }

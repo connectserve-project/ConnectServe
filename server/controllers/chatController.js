@@ -3,12 +3,12 @@ const { Op } = require('sequelize');
 const { uploadToCloudinary } = require('../config/cloudinary');
 const { sendSuccess, sendError } = require('../utils/responseHandler');
 
-const findConversationByIdOrMongoId = async (id, options = {}) => {
+const findConversationById = async (id, options = {}) => {
   if (typeof id === 'number' || !isNaN(Number(id))) {
     const conv = await Conversation.findByPk(id, options);
     if (conv) return conv;
   }
-  return await Conversation.findOne({ where: { mongoId: String(id) }, ...options });
+  return null;
 };
 
 const getParticipantIds = (conv) =>
@@ -111,9 +111,6 @@ const getOrCreateConversation = async (req, res, next) => {
     if (typeof recipientId === 'number' || !isNaN(Number(recipientId))) {
       recipient = await User.findByPk(recipientId);
     }
-    if (!recipient) {
-      recipient = await User.findOne({ where: { mongoId: String(recipientId) } });
-    }
 
     if (!recipient) {
       return sendError(res, 'Recipient not found.', 404);
@@ -157,7 +154,7 @@ const getMessages = async (req, res, next) => {
     const { id } = req.params;
     const userId = req.user.id || req.user._id;
 
-    const conversation = await findConversationByIdOrMongoId(id);
+    const conversation = await findConversationById(id);
 
     if (!conversation) {
       return sendError(res, 'Conversation not found or unauthorized.', 404);
@@ -209,7 +206,7 @@ const sendMessage = async (req, res, next) => {
       return sendError(res, 'Message text or attachment is required.', 400);
     }
 
-    const conversation = await findConversationByIdOrMongoId(id);
+    const conversation = await findConversationById(id);
 
     if (!conversation) {
       return sendError(res, 'Conversation not found.', 404);
@@ -300,7 +297,7 @@ const sendMessage = async (req, res, next) => {
 const deleteConversation = async (req, res, next) => {
   try {
     const userId = req.user.id || req.user._id;
-    const conversation = await findConversationByIdOrMongoId(req.params.id);
+    const conversation = await findConversationById(req.params.id);
     if (!conversation) return sendError(res, 'Conversation not found.', 404);
     if (!loadParticipantUser(conversation, userId)) {
       return sendError(res, 'Unauthorized access to conversation.', 403);
@@ -321,7 +318,7 @@ const deleteConversation = async (req, res, next) => {
 const setBlockState = async (req, res, next, shouldBlock) => {
   try {
     const userId = req.user.id || req.user._id;
-    const conversation = await findConversationByIdOrMongoId(req.params.id);
+    const conversation = await findConversationById(req.params.id);
     if (!conversation) return sendError(res, 'Conversation not found.', 404);
     if (!loadParticipantUser(conversation, userId)) {
       return sendError(res, 'Unauthorized access to conversation.', 403);
@@ -365,7 +362,7 @@ const reportUser = async (req, res, next) => {
       return sendError(res, 'Please select a reason for the report.', 400);
     }
 
-    const conversation = await findConversationByIdOrMongoId(req.params.id);
+    const conversation = await findConversationById(req.params.id);
     if (!conversation) return sendError(res, 'Conversation not found.', 404);
     if (!loadParticipantUser(conversation, userId)) {
       return sendError(res, 'Unauthorized access to conversation.', 403);

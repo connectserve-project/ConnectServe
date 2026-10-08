@@ -9,11 +9,6 @@ const User = sequelize.define('User', {
     primaryKey: true,
     autoIncrement: true,
   },
-  mongoId: {
-    type: DataTypes.STRING(36),
-    unique: true,
-    allowNull: true,
-  },
   name: {
     type: DataTypes.STRING(80),
     allowNull: false,

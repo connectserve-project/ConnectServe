@@ -7,11 +7,6 @@ const Message = sequelize.define('Message', {
     primaryKey: true,
     autoIncrement: true,
   },
-  mongoId: {
-    type: DataTypes.STRING(36),
-    unique: true,
-    allowNull: true,
-  },
   conversationId: {
     type: DataTypes.INTEGER,
     allowNull: false,

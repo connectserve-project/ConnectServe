@@ -7,11 +7,6 @@ const Report = sequelize.define('Report', {
     primaryKey: true,
     autoIncrement: true,
   },
-  mongoId: {
-    type: DataTypes.STRING(36),
-    unique: true,
-    allowNull: true,
-  },
   reporterId: {
     type: DataTypes.INTEGER,
     allowNull: false,

@@ -4,12 +4,12 @@ const { evaluateBadges } = require('../utils/badgeCalculator');
 const { sendApplicationStatusEmail, sendNewApplicantEmail, sendCertificateEmail } = require('../utils/emailService');
 const { sendSuccess, sendError } = require('../utils/responseHandler');
 
-const findEventByIdOrMongoId = async (id) => {
+const findEventById = async (id) => {
   if (typeof id === 'number' || !isNaN(Number(id))) {
     const found = await Event.findByPk(id);
     if (found) return found;
   }
-  return await Event.findOne({ where: { mongoId: String(id) } });
+  return null;
 };
 
 // @desc    Register / Apply for an event
@@ -29,7 +29,7 @@ const registerForEvent = async (req, res, next) => {
       return sendError(res, "Can't Join Others Events", 403);
     }
 
-    const event = await findEventByIdOrMongoId(eventIdParam);
+    const event = await findEventById(eventIdParam);
     if (!event) {
       return sendError(res, 'Event not found.', 404);
     }
@@ -151,7 +151,7 @@ const getMyRegistrations = async (req, res, next) => {
 const getEventApplicants = async (req, res, next) => {
   try {
     const eventIdParam = req.params.id;
-    const event = await findEventByIdOrMongoId(eventIdParam);
+    const event = await findEventById(eventIdParam);
 
     if (!event) {
       return sendError(res, 'Event not found.', 404);
@@ -376,7 +376,7 @@ const scanAttendance = async (req, res, next) => {
     }
 
     // 2) Find Event
-    const event = await findEventByIdOrMongoId(eventId);
+    const event = await findEventById(eventId);
     if (!event) {
       return sendError(res, 'Event not found.', 404);
     }

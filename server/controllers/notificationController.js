@@ -1,12 +1,12 @@
 const { Notification, User } = require('../models');
 const { sendSuccess, sendError } = require('../utils/responseHandler');
 
-const findNotificationByIdOrMongoId = async (id, recipientId) => {
+const findNotificationById = async (id, recipientId) => {
   if (typeof id === 'number' || !isNaN(Number(id))) {
     const notif = await Notification.findByPk(id);
     if (notif && String(notif.recipientId) === String(recipientId)) return notif;
   }
-  return await Notification.findOne({ where: { mongoId: String(id), recipientId } });
+  return null;
 };
 
 // @desc    Get user notifications
@@ -52,7 +52,7 @@ const getNotifications = async (req, res, next) => {
 const markAsRead = async (req, res, next) => {
   try {
     const userId = req.user.id || req.user._id;
-    const notification = await findNotificationByIdOrMongoId(req.params.id, userId);
+    const notification = await findNotificationById(req.params.id, userId);
 
     if (!notification) {
       return sendError(res, 'Notification not found.', 404);

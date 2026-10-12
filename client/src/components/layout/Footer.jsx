@@ -1,9 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Heart, Globe, Shield, Sparkles } from 'lucide-react';
+import { useAuth } from '../../hooks/useAuth';
 
 export const Footer = () => {
+  const { isAuthenticated } = useAuth();
   return (
+
     <footer className="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 transition-colors mt-auto">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
@@ -60,16 +63,24 @@ export const Footer = () => {
               Get Involved
             </h5>
             <ul className="space-y-2 text-sm text-slate-500 dark:text-slate-400">
+
+
               <li>
-                <Link to="/register" className="hover:text-emerald-600 transition-colors">
-                  Register as Volunteer
-                </Link>
+                {!isAuthenticated && (
+                  <Link to="/register" className="hover:text-emerald-600 transition-colors">
+                    Register as Volunteer
+                  </Link>
+                )}
+
               </li>
               <li>
-                <Link to="/register" className="hover:text-emerald-600 transition-colors">
-                  Register NGO / Organization
-                </Link>
+                {!isAuthenticated && (
+                  <Link to="/register" className="hover:text-emerald-600 transition-colors">
+                    Register NGO / Organization
+                  </Link>
+                )}
               </li>
+
               <li>
                 <Link to="/certificates" className="hover:text-emerald-600 transition-colors">
                   Verify Certificates

@@ -46,23 +46,6 @@ export const Leaderboard = () => {
         <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto">
           Celebrating top dedicated volunteers ranked by verified hours contributed to global causes.
         </p>
-
-        {/* Timeframe Filter */}
-        <div className="flex justify-center gap-2 pt-2">
-          {['all', 'monthly', 'weekly'].map((tf) => (
-            <button
-              key={tf}
-              onClick={() => setTimeframe(tf)}
-              className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all min-h-[44px] ${
-                timeframe === tf
-                  ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
-              }`}
-            >
-              {tf === 'all' ? 'All Time' : tf === 'monthly' ? 'This Month' : 'This Week'}
-            </button>
-          ))}
-        </div>
       </div>
 
       {/* Top 3 Podium (Visual Showcase) */}

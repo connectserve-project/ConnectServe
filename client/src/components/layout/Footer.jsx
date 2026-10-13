@@ -4,7 +4,7 @@ import { Heart, Globe, Shield, Sparkles } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 
 export const Footer = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isVolunteer } = useAuth();
   return (
 
     <footer className="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 transition-colors mt-auto">
@@ -33,6 +33,10 @@ export const Footer = () => {
             </div>
           </div>
 
+          <div>
+
+          </div>
+
           {/* Quick Links */}
           <div className="space-y-3">
             <h5 className="font-bold text-sm text-slate-900 dark:text-white uppercase tracking-wider">
@@ -57,37 +61,6 @@ export const Footer = () => {
             </ul>
           </div>
 
-          {/* Roles & Verification */}
-          <div className="space-y-3">
-            <h5 className="font-bold text-sm text-slate-900 dark:text-white uppercase tracking-wider">
-              Get Involved
-            </h5>
-            <ul className="space-y-2 text-sm text-slate-500 dark:text-slate-400">
-
-
-              <li>
-                {!isAuthenticated && (
-                  <Link to="/register" className="hover:text-emerald-600 transition-colors">
-                    Register as Volunteer
-                  </Link>
-                )}
-
-              </li>
-              <li>
-                {!isAuthenticated && (
-                  <Link to="/register" className="hover:text-emerald-600 transition-colors">
-                    Register NGO / Organization
-                  </Link>
-                )}
-              </li>
-
-              <li>
-                <Link to="/certificates" className="hover:text-emerald-600 transition-colors">
-                  Verify Certificates
-                </Link>
-              </li>
-            </ul>
-          </div>
         </div>
 
         <div className="pt-8 mt-8 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs text-slate-400">

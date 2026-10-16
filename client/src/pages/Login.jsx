@@ -123,7 +123,7 @@ export const Login = () => {
             Welcome Back
           </h1>
           <p className="text-xs sm:text-sm text-slate-500">
-            Log in to manage community drives, post updates, and track volunteer hours.
+            Log in to manage community Events, post updates, and track volunteer hours.
           </p>
         </div>
 

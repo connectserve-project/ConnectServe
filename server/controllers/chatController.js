@@ -1,6 +1,6 @@
 const { Conversation, Message, User, Report } = require('../models');
 const { Op } = require('sequelize');
-const { uploadToCloudinary } = require('../config/cloudinary');
+const { uploadToCloudinary, cloudinary, isCloudinaryConfigured } = require('../config/cloudinary');
 const { sendSuccess, sendError } = require('../utils/responseHandler');
 
 const findConversationById = async (id, options = {}) => {
@@ -43,6 +43,116 @@ const notifyBlockChange = (req, conv, userId) => {
   if (other) {
     io.to(`user:${other}`).emit('conversation_block_changed', { conversationId: conv.id });
   }
+};
+
+
+// ---------------------------------------------------------------------------
+// Chat attachments (Photo / Video / Document) - uploaded straight from the
+// browser to Cloudinary, so large files never pass through the server.
+// ---------------------------------------------------------------------------
+const MB = 1024 * 1024;
+const ATTACHMENT_LIMITS = {
+  image: 50 * MB,
+  video: 100 * MB,
+  document: 500 * MB,
+};
+const CHAT_UPLOAD_FOLDER = 'connectserve/chat';
+const CLOUDINARY_RESOURCE_TYPE = { image: 'image', video: 'video', document: 'raw' };
+
+// Cloudinary rejects signatures whose timestamp is more than 1 hour off its own clock
+// ("Stale request"). If the server machine's clock is wrong, use Cloudinary's time instead.
+let clockOffsetMs = 0;
+let clockCheckedAt = 0;
+const syncClockWithCloudinary = () =>
+  new Promise((resolve) => {
+    if (Date.now() - clockCheckedAt < 10 * 60 * 1000) return resolve();
+    const https = require('https');
+    const req = https.request(
+      { method: 'HEAD', host: 'api.cloudinary.com', path: '/', timeout: 4000 },
+      (res) => {
+        const serverTime = Date.parse(res.headers.date);
+        if (!Number.isNaN(serverTime)) {
+          clockOffsetMs = serverTime - Date.now();
+          clockCheckedAt = Date.now();
+        }
+        res.resume();
+        resolve();
+      }
+    );
+    req.on('timeout', () => { req.destroy(); resolve(); });
+    req.on('error', () => resolve());
+    req.end();
+  });
+
+// @desc    Get a signed upload payload so the browser can upload directly to Cloudinary
+// @route   POST /api/chat/upload-signature
+// @access  Private
+const getUploadSignature = async (req, res, next) => {
+  try {
+    if (!isCloudinaryConfigured()) {
+      return sendError(res, 'File uploads are not configured on the server (Cloudinary).', 503);
+    }
+
+    const { type, size } = req.body;
+    if (!ATTACHMENT_LIMITS[type]) {
+      return sendError(res, 'Invalid attachment type.', 400);
+    }
+    if (Number(size) > ATTACHMENT_LIMITS[type]) {
+      return sendError(
+        res,
+        `${type.charAt(0).toUpperCase() + type.slice(1)} must be smaller than ${ATTACHMENT_LIMITS[type] / MB} MB.`,
+        400
+      );
+    }
+
+    await syncClockWithCloudinary();
+    const timestamp = Math.round((Date.now() + clockOffsetMs) / 1000);
+    const paramsToSign = { folder: CHAT_UPLOAD_FOLDER, timestamp };
+    const signature = cloudinary.utils.api_sign_request(paramsToSign, process.env.CLOUDINARY_API_SECRET);
+
+    return sendSuccess(res, 'Upload signature created.', {
+      signature,
+      timestamp,
+      folder: CHAT_UPLOAD_FOLDER,
+      apiKey: process.env.CLOUDINARY_API_KEY,
+      cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+      resourceType: CLOUDINARY_RESOURCE_TYPE[type],
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Validates the attachment metadata the client sends after a direct Cloudinary upload
+const sanitizeAttachment = (att) => {
+  if (!att || typeof att !== 'object') return null;
+  const type = att.type;
+  if (!ATTACHMENT_LIMITS[type]) return null;
+
+  const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+  const url = String(att.url || '');
+  const publicId = String(att.public_id || '');
+  // Only accept files that really live in our Cloudinary chat folder
+  if (!url.startsWith(`https://res.cloudinary.com/${cloudName}/`)) return null;
+  if (!publicId.startsWith(`${CHAT_UPLOAD_FOLDER}/`)) return null;
+
+  const bytes = Number(att.size) || 0;
+  if (bytes > ATTACHMENT_LIMITS[type]) return null;
+
+  return {
+    url,
+    public_id: publicId,
+    type,
+    name: String(att.name || 'file').slice(0, 200),
+    size: bytes,
+  };
+};
+
+const attachmentPreviewText = (media) => {
+  if (!media || !media.url) return '';
+  if (media.type === 'video') return '🎥 Video';
+  if (media.type === 'document') return `📄 ${media.name || 'Document'}`;
+  return '📷 Photo';
 };
 
 // @desc    Get all active conversations for current user
@@ -199,10 +309,10 @@ const getMessages = async (req, res, next) => {
 const sendMessage = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { text, recipientId } = req.body;
+    const { text, recipientId, attachment } = req.body;
     const userId = req.user.id || req.user._id;
 
-    if (!text && !req.file) {
+    if (!text && !req.file && !attachment) {
       return sendError(res, 'Message text or attachment is required.', 400);
     }
 
@@ -232,7 +342,14 @@ const sendMessage = async (req, res, next) => {
     }
 
     let media = { url: '', public_id: '' };
-    if (req.file) {
+    if (attachment) {
+      // Direct-to-Cloudinary upload (photo / video / document)
+      const clean = sanitizeAttachment(attachment);
+      if (!clean) {
+        return sendError(res, 'Invalid attachment.', 400);
+      }
+      media = clean;
+    } else if (req.file) {
       const uploadResult = await uploadToCloudinary(req.file.buffer, 'connectserve/chat', {
         transformation: [{ width: 800, crop: 'limit' }],
         mimetype: req.file.mimetype,
@@ -240,6 +357,9 @@ const sendMessage = async (req, res, next) => {
       media = {
         url: uploadResult.secure_url,
         public_id: uploadResult.public_id,
+        type: 'image',
+        name: req.file.originalname || 'image',
+        size: req.file.size || 0,
       };
     }
 
@@ -247,7 +367,7 @@ const sendMessage = async (req, res, next) => {
       conversationId: conversation.id,
       senderId: userId,
       recipientId: Number(otherParticipantId) || otherParticipantId,
-      text: text || (media.url ? 'Sent an attachment' : ''),
+      text: text || attachmentPreviewText(media),
       media,
     });
 
@@ -408,4 +528,5 @@ module.exports = {
   blockUser,
   unblockUser,
   reportUser,
+  getUploadSignature,
 };

@@ -8,6 +8,7 @@ const {
   blockUser,
   unblockUser,
   reportUser,
+  getUploadSignature,
 } = require('../controllers/chatController');
 const { protect } = require('../middleware/authMiddleware');
 const upload = require('../middleware/uploadMiddleware');
@@ -16,6 +17,7 @@ const router = express.Router();
 
 router.use(protect);
 
+router.post('/upload-signature', getUploadSignature);
 router.get('/conversations', getConversations);
 router.post('/conversations', getOrCreateConversation);
 router.get('/conversations/:id/messages', getMessages);

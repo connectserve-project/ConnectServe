@@ -36,10 +36,14 @@ export const chatService = {
     return response.data;
   },
 
-  sendMessage: async (conversationId, formData) => {
-    const response = await api.post(`/chat/conversations/${conversationId}/messages`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+  getUploadSignature: async (type, size) => {
+    const response = await api.post('/chat/upload-signature', { type, size });
+    return response.data;
+  },
+
+  // payload: { text, recipientId, attachment? }  (attachment comes from uploadChatFile)
+  sendMessage: async (conversationId, payload) => {
+    const response = await api.post(`/chat/conversations/${conversationId}/messages`, payload);
     return response.data;
   },
 };

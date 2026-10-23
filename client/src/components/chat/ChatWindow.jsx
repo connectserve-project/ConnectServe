@@ -7,8 +7,11 @@ import { chatService } from '../../services/chatService';
 import { useSocket } from '../../hooks/useSocket';
 import { Modal } from '../common/Modal';
 import { Button } from '../common/Button';
-import { Send, Image, X, ArrowLeft, Loader2, MoreVertical, Trash2, Ban, UserCheck, Flag } from 'lucide-react';
+import { Send, Link as LinkIcon, Image, Video, FileText, X, ArrowLeft, Loader2, MoreVertical, Trash2, Ban, UserCheck, Flag } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { uploadChatFile, validateAttachment, formatFileSize, ATTACHMENT_LABELS } from '../../utils/uploadChatFile';
+
+const DOCUMENT_ACCEPT = '.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.rtf,.zip,.rar,.7z';
 
 export const ChatWindow = ({
   conversation,
@@ -23,6 +26,13 @@ export const ChatWindow = ({
   const [inputText, setInputText] = useState('');
   const [mediaFile, setMediaFile] = useState(null);
   const [mediaPreview, setMediaPreview] = useState(null);
+  const [mediaType, setMediaType] = useState(null); // 'image' | 'video' | 'document'
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [attachMenuOpen, setAttachMenuOpen] = useState(false);
+  const attachMenuRef = useRef(null);
+  const photoInputRef = useRef(null);
+  const videoInputRef = useRef(null);
+  const documentInputRef = useRef(null);
   const [isTyping, setIsTyping] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
@@ -224,18 +234,49 @@ export const ChatWindow = ({
     }
   };
 
-  const handleImageSelect = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setMediaFile(file);
-      setMediaPreview(URL.createObjectURL(file));
-    }
-  };
+  // Close the attach (link) menu on outside click
+  useEffect(() => {
+    if (!attachMenuOpen) return undefined;
+    const onDown = (e) => {
+      if (attachMenuRef.current && !attachMenuRef.current.contains(e.target)) setAttachMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('touchstart', onDown);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('touchstart', onDown);
+    };
+  }, [attachMenuOpen]);
 
   const handleRemoveImage = () => {
     setMediaFile(null);
     if (mediaPreview) URL.revokeObjectURL(mediaPreview);
     setMediaPreview(null);
+    setMediaType(null);
+    setUploadProgress(0);
+  };
+
+  const pickAttachment = (type) => {
+    setAttachMenuOpen(false);
+    const ref = type === 'image' ? photoInputRef : type === 'video' ? videoInputRef : documentInputRef;
+    ref.current?.click();
+  };
+
+  const handleFileSelect = (type) => (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow re-selecting the same file
+    if (!file) return;
+
+    const error = validateAttachment(file, type);
+    if (error) {
+      toast.error(error);
+      return;
+    }
+    if (mediaPreview) URL.revokeObjectURL(mediaPreview);
+    setMediaFile(file);
+    setMediaType(type);
+    setUploadProgress(0);
+    setMediaPreview(type === 'document' ? null : URL.createObjectURL(file));
   };
 
   const handleSend = async (e) => {
@@ -244,19 +285,24 @@ export const ChatWindow = ({
 
     setIsSending(true);
     try {
-      const formData = new FormData();
-      if (inputText.trim()) formData.append('text', inputText.trim());
-      if (mediaFile) formData.append('media', mediaFile);
-      if (otherParticipant?._id) formData.append('recipientId', otherParticipant._id);
+      const payload = {};
+      if (inputText.trim()) payload.text = inputText.trim();
+      if (otherParticipant?._id) payload.recipientId = otherParticipant._id;
 
-      const res = await chatService.sendMessage(conversation._id, formData);
+      // Upload straight to Cloudinary first, then send only the link in the message
+      if (mediaFile) {
+        setUploadProgress(0);
+        payload.attachment = await uploadChatFile(mediaFile, mediaType, setUploadProgress);
+      }
+
+      const res = await chatService.sendMessage(conversation._id, payload);
       if (res.success) {
         if (socket) socket.emit('stop_typing', { conversationId: conversation._id, recipientId: otherIdRef.current });
         setInputText('');
         handleRemoveImage();
       }
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to send message.');
+      toast.error(err.response?.data?.message || err.message || 'Failed to send message.');
       // Probably blocked meanwhile - pull the latest block state
       if (err.response?.status === 403 && onRefreshConversations) onRefreshConversations();
     } finally {
@@ -387,19 +433,42 @@ export const ChatWindow = ({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Media Preview if attached */}
-      {mediaPreview && (
+      {/* Attachment preview */}
+      {mediaFile && (
         <div className="px-4 py-2 bg-slate-50 dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 flex items-center gap-3">
-          <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-slate-300 dark:border-slate-600">
-            <img src={mediaPreview} alt="Preview" className="w-full h-full object-cover" />
-            <button
-              onClick={handleRemoveImage}
-              className="absolute top-1 right-1 p-0.5 rounded-full bg-slate-900 text-white"
-            >
-              <X className="w-3 h-3" />
-            </button>
+          <div className="relative w-16 h-16 shrink-0 rounded-xl overflow-hidden border border-slate-300 dark:border-slate-600 bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
+            {mediaType === 'image' && mediaPreview && (
+              <img src={mediaPreview} alt="Preview" className="w-full h-full object-cover" />
+            )}
+            {mediaType === 'video' && mediaPreview && (
+              <video src={mediaPreview} className="w-full h-full object-cover" muted />
+            )}
+            {mediaType === 'document' && <FileText className="w-7 h-7 text-emerald-600" />}
+            {!isSending && (
+              <button
+                type="button"
+                onClick={handleRemoveImage}
+                className="absolute top-1 right-1 p-0.5 rounded-full bg-slate-900 text-white"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
           </div>
-          <span className="text-xs text-slate-500 truncate">Image ready to send</span>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate">{mediaFile.name}</p>
+            <p className="text-[11px] text-slate-400">
+              {ATTACHMENT_LABELS[mediaType]} · {formatFileSize(mediaFile.size)}
+              {isSending ? ` · Uploading ${uploadProgress}%` : ' · ready to send'}
+            </p>
+            {isSending && (
+              <div className="mt-1.5 h-1.5 w-full rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+                <div
+                  className="h-full bg-emerald-600 transition-all duration-200"
+                  style={{ width: `${uploadProgress}%` }}
+                />
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -422,15 +491,53 @@ export const ChatWindow = ({
         onSubmit={handleSend}
         className="p-3 sm:p-4 border-t border-slate-200 dark:border-slate-800 flex items-center gap-2"
       >
-        <label className="p-2.5 rounded-xl text-slate-500 hover:text-emerald-600 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center transition-colors">
-          <Image className="w-5 h-5" />
-          <input
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={handleImageSelect}
-          />
-        </label>
+        <div className="relative" ref={attachMenuRef}>
+          <button
+            type="button"
+            onClick={() => setAttachMenuOpen((o) => !o)}
+            disabled={isSending}
+            aria-label="Attach a file"
+            className="p-2.5 rounded-xl text-slate-500 hover:text-emerald-600 hover:bg-slate-100 dark:hover:bg-slate-800 min-h-[44px] min-w-[44px] flex items-center justify-center transition-colors disabled:opacity-50"
+          >
+            <LinkIcon className="w-5 h-5" />
+          </button>
+
+          {attachMenuOpen && (
+            <div className="absolute left-0 bottom-full mb-2 w-52 z-30 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl py-1.5 animate-fadeIn">
+              <button
+                type="button"
+                onClick={() => pickAttachment('image')}
+                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+              >
+                <Image className="w-4 h-4 text-emerald-600" />
+                <span className="flex-1 text-left">Photo</span>
+                <span className="text-[10px] font-medium text-slate-400">50 MB</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => pickAttachment('video')}
+                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+              >
+                <Video className="w-4 h-4 text-emerald-600" />
+                <span className="flex-1 text-left">Video</span>
+                <span className="text-[10px] font-medium text-slate-400">100 MB</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => pickAttachment('document')}
+                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+              >
+                <FileText className="w-4 h-4 text-emerald-600" />
+                <span className="flex-1 text-left">Document</span>
+                <span className="text-[10px] font-medium text-slate-400">500 MB</span>
+              </button>
+            </div>
+          )}
+
+          <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileSelect('image')} />
+          <input ref={videoInputRef} type="file" accept="video/*" className="hidden" onChange={handleFileSelect('video')} />
+          <input ref={documentInputRef} type="file" accept={DOCUMENT_ACCEPT} className="hidden" onChange={handleFileSelect('document')} />
+        </div>
 
         <input
           type="text"

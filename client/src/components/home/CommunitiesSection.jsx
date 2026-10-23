@@ -20,22 +20,28 @@ const CommunityCard = ({ community }) => {
   return (
     <div className="flex-shrink-0 w-[240px] sm:w-[260px] bg-white dark:bg-slate-900 rounded-3xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-card hover-glow flex flex-col justify-between">
       <div>
-        <div className="relative h-24 w-full overflow-hidden bg-slate-200 dark:bg-slate-800">
-          <img
-            src={coverUrl}
-            alt=""
-            className="w-full h-full object-cover"
-            loading="lazy"
-            crossOrigin="anonymous"
-            referrerPolicy="no-referrer"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-          
-          <div className="absolute -bottom-5 left-4 w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 border-2 border-white dark:border-slate-900 overflow-hidden flex items-center justify-center text-white font-extrabold text-xs shadow-md">
+        <div className="relative h-24 w-full">
+          {/* Clip only the cover image */}
+          <div className="absolute inset-0 overflow-hidden bg-slate-200 dark:bg-slate-800">
+            <img
+              src={coverUrl}
+              alt=""
+              className="w-full h-full object-cover"
+              loading="lazy"
+              crossOrigin="anonymous"
+              referrerPolicy="no-referrer"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+          </div>
+
+          {/* Avatar sits outside the clipped area, so it shows fully */}
+          <div className="absolute -bottom-6 left-4 w-12 h-12 rounded-2xl bg-white dark:bg-slate-900 border-2 border-white dark:border-slate-900 overflow-hidden flex items-center justify-center shadow-md z-10">
             {avatarUrl ? (
               <img src={avatarUrl} alt={community.name} className="w-full h-full object-cover" />
             ) : (
-              <span>{initials}</span>
+              <span className="w-full h-full flex items-center justify-center bg-gradient-to-br from-emerald-500 to-teal-600 text-white font-extrabold text-xs">
+                {initials}
+              </span>
             )}
           </div>
         </div>
@@ -47,10 +53,6 @@ const CommunityCard = ({ community }) => {
               {isVerified && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />}
             </h3>
           </Link>
-          <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
-            <Users className="w-3.5 h-3.5" />
-            <span>{membersText}</span>
-          </div>
           <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium line-clamp-1">{category}</p>
         </div>
       </div>
@@ -58,11 +60,10 @@ const CommunityCard = ({ community }) => {
       <div className="p-4 pt-0">
         <button
           onClick={() => setJoined((v) => !v)}
-          className={`w-full text-xs font-bold py-2 rounded-xl transition-all ${
-            joined
+          className={`w-full text-xs font-bold py-2 rounded-xl transition-all ${joined
               ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
               : 'bg-gradient-to-r from-emerald-600 to-teal-500 text-white shadow-md shadow-emerald-600/25 hover:shadow-lg'
-          }`}
+            }`}
         >
           {joined ? 'Following ✓' : 'Follow NGO'}
         </button>

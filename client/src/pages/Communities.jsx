@@ -24,21 +24,25 @@ const OrgCard = ({ org, onSelect, onToggleFollow, followBusy }) => {
     org.banner ||
     'https://images.unsplash.com/photo-1500534623283-312aade485b7?w=800&auto=format&fit=crop&q=80';
   const category = org.orgDetails?.category || 'Community NGO';
-  const followersCount = org.followers?.length ?? org.followersCount ?? 0;
 
   return (
     <div className="bg-white dark:bg-slate-900 rounded-3xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-card hover-glow flex flex-col">
-      <div className="relative h-24 w-full overflow-hidden bg-slate-200 dark:bg-slate-800">
-        <img
-          src={bannerUrl}
-          alt=""
-          className="w-full h-full object-cover"
-          loading="lazy"
-          crossOrigin="anonymous"
-          referrerPolicy="no-referrer"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-        <div className="absolute -bottom-5 left-4">
+      <div className="relative h-24 w-full">
+        {/* Clip only the banner image */}
+        <div className="absolute inset-0 overflow-hidden bg-slate-200 dark:bg-slate-800">
+          <img
+            src={bannerUrl}
+            alt=""
+            className="w-full h-full object-cover"
+            loading="lazy"
+            crossOrigin="anonymous"
+            referrerPolicy="no-referrer"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+        </div>
+
+        {/* Avatar sits outside the clipped area */}
+        <div className="absolute -bottom-6 left-4 z-10">
           <Avatar src={avatarUrl} alt={org.name} size="lg" isOrg className="border-2 border-white dark:border-slate-900" />
         </div>
       </div>
@@ -53,10 +57,6 @@ const OrgCard = ({ org, onSelect, onToggleFollow, followBusy }) => {
             )}
           </h3>
         </button>
-        <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
-          <Users className="w-3.5 h-3.5" />
-          <span>{followersCount} followers</span>
-        </div>
         <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium line-clamp-1">
           {category}
         </p>
@@ -75,11 +75,10 @@ const OrgCard = ({ org, onSelect, onToggleFollow, followBusy }) => {
         <button
           onClick={() => onToggleFollow(org)}
           disabled={followBusy}
-          className={`flex-1 text-xs font-bold py-2 rounded-xl transition-all disabled:opacity-60 ${
-            org.isFollowedByMe
+          className={`flex-1 text-xs font-bold py-2 rounded-xl transition-all disabled:opacity-60 ${org.isFollowedByMe
               ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
               : 'bg-gradient-to-r from-emerald-600 to-teal-500 text-white shadow-md shadow-emerald-600/25 hover:shadow-lg'
-          }`}
+            }`}
         >
           {org.isFollowedByMe ? 'Following ✓' : 'Follow'}
         </button>
@@ -205,11 +204,10 @@ export const Communities = () => {
           <button
             onClick={() => handleToggleFollow(selectedOrg)}
             disabled={followBusyId === selectedOrg._id}
-            className={`flex-shrink-0 text-xs font-bold px-4 py-2.5 rounded-xl transition-all disabled:opacity-60 ${
-              selectedOrg.isFollowedByMe
+            className={`flex-shrink-0 text-xs font-bold px-4 py-2.5 rounded-xl transition-all disabled:opacity-60 ${selectedOrg.isFollowedByMe
                 ? 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
                 : 'bg-gradient-to-r from-emerald-600 to-teal-500 text-white shadow-md shadow-emerald-600/25 hover:shadow-lg'
-            }`}
+              }`}
           >
             {selectedOrg.isFollowedByMe ? 'Following ✓' : 'Follow NGO'}
           </button>

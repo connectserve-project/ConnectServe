@@ -2,14 +2,17 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Users, CheckCircle2, Building2 } from 'lucide-react';
 
+// The User model's default banner is a placeholder stock photo - never show it.
+const DEFAULT_BANNER_MARK = 'photo-1579208575657-c595a05383b7';
+
 const CommunityCard = ({ community }) => {
   const [joined, setJoined] = useState(false);
+  const [coverFailed, setCoverFailed] = useState(false);
   const avatarUrl = community.avatar?.url || community.avatar || '';
-  const coverUrl = community.banner?.url || community.cover || 'https://images.unsplash.com/photo-1500534623283-312aade485b7?w=800&auto=format&fit=crop&q=80';
+  const rawBanner = community.banner?.url || (typeof community.banner === 'string' ? community.banner : '') || community.cover || '';
+  const coverUrl = rawBanner && !rawBanner.includes(DEFAULT_BANNER_MARK) ? rawBanner : '';
+  const showCover = Boolean(coverUrl) && !coverFailed;
   const category = community.orgDetails?.category || community.activity || 'Community NGO';
-  const membersText = community.followersCount !== undefined
-    ? `${community.followersCount || 12} followers`
-    : `${community.members || '1.2K'} members`;
 
   const initials = community.name
     ? community.name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase()
@@ -22,15 +25,17 @@ const CommunityCard = ({ community }) => {
       <div>
         <div className="relative h-24 w-full">
           {/* Clip only the cover image */}
-          <div className="absolute inset-0 overflow-hidden bg-slate-200 dark:bg-slate-800">
-            <img
-              src={coverUrl}
-              alt=""
-              className="w-full h-full object-cover"
-              loading="lazy"
-              crossOrigin="anonymous"
-              referrerPolicy="no-referrer"
-            />
+          <div className="absolute inset-0 overflow-hidden bg-gradient-to-br from-emerald-700 to-teal-600">
+            {showCover && (
+              <img
+                src={coverUrl}
+                alt=""
+                className="w-full h-full object-cover"
+                loading="lazy"
+                referrerPolicy="no-referrer"
+                onError={() => setCoverFailed(true)}
+              />
+            )}
             <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
           </div>
 

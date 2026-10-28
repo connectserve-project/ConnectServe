@@ -79,15 +79,24 @@ export const Navbar = ({ onOpenCreatePost, onToggleMobileSidebar }) => {
 
           {/* Desktop Search Bar */}
           <div className="hidden md:flex flex-1 max-w-md mx-4">
-            <form onSubmit={handleSearchSubmit} className="w-full relative">
-              <input
-                type="text"
-                placeholder="Search events, volunteers, causes..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 text-sm rounded-full bg-slate-100 dark:bg-slate-800 border border-emerald-600 focus:outline-none focus:border-emerald-800 focus:ring-10 focus:ring-emerald-800/50 text-slate-900 dark:text-slate-100 placeholder-slate-400 transition-colors"
-              />
-              <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
+            <form onSubmit={handleSearchSubmit} className="w-full flex items-center gap-2">
+              <div className="relative flex-1">
+                <input
+                  type="text"
+                  placeholder="Search events, volunteers, causes..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 text-sm rounded-full bg-slate-100 dark:bg-slate-800 border border-emerald-600 focus:outline-none focus:border-emerald-800 focus:ring-10 focus:ring-emerald-800/50 text-slate-900 dark:text-slate-100 placeholder-slate-400 transition-colors"
+                />
+                <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
+              </div>
+              <button
+                type="submit"
+                aria-label="Search"
+                className="flex-shrink-0 px-4 py-2 text-sm font-semibold rounded-full bg-gradient-to-r from-emerald-600 to-teal-500 text-white shadow-md shadow-emerald-600/25 hover:shadow-lg transition-all"
+              >
+                Search
+              </button>
             </form>
           </div>
 

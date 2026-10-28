@@ -9,15 +9,13 @@ export const EventFilter = ({
   setCategory,
   locationType,
   setLocationType,
-  sortBy,
-  setSortBy,
 }) => {
   return (
     <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200 dark:border-slate-800 shadow-card space-y-4">
       {/* Search Input & Dropdowns Row */}
       <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
         {/* Search */}
-        <div className="sm:col-span-6 relative">
+        <div className="sm:col-span-8 relative">
           <input
             type="text"
             placeholder="Search Event by keyword, skill, or city..."
@@ -29,7 +27,7 @@ export const EventFilter = ({
         </div>
 
         {/* Location Type */}
-        <div className="sm:col-span-3">
+        <div className="sm:col-span-4">
           <select
             value={locationType}
             onChange={(e) => setLocationType(e.target.value)}
@@ -39,21 +37,6 @@ export const EventFilter = ({
             <option value="in-person">In-Person Only</option>
             <option value="virtual">Virtual / Remote</option>
             <option value="hybrid">Hybrid</option>
-          </select>
-        </div>
-
-        {/* Sort By */}
-        <div className="sm:col-span-3">
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            className="w-full px-3 py-2.5 text-xs sm:text-sm rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
-          >
-            <option value="date_asc">Upcoming Soonest</option>
-            <option value="date_desc">Latest Date</option>
-            <option value="hours_desc">Highest Service Hours</option>
-            <option value="rating_desc">Highest Rated</option>
-            <option value="popular">Most Popular</option>
           </select>
         </div>
       </div>

@@ -379,7 +379,7 @@ const searchUsers = async (req, res, next) => {
 
     const { count: total, rows: users } = await User.findAndCountAll({
       where,
-      attributes: ['id', 'name', 'username', 'avatar', 'role', 'bio', 'location', 'skills', 'orgDetails', 'volunteerHours', 'badges'],
+      attributes: ['id', 'name', 'username', 'avatar', 'banner', 'role', 'bio', 'location', 'skills', 'orgDetails', 'volunteerHours', 'badges'],
       offset,
       limit: parsedLimit,
       order: [['volunteerHours', 'DESC']],

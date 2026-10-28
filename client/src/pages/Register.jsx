@@ -353,7 +353,7 @@ export const Register = () => {
 
           {/* Mobile Number */}
           <div>
-            <label className={labelClass}>Mobile Number (can be used to login)</label>
+            <label className={labelClass}>Mobile Number </label>
             <div className="flex gap-2">
               <select
                 value={countryCode}

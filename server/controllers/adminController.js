@@ -16,6 +16,24 @@ const findUserById = async (id) => {
 // @access  Private (Admin)
 const getAnalytics = async (req, res, next) => {
   try {
+    // Automatically mark events older than 1 day as completed
+    const oneDayAgo = new Date();
+    oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+    oneDayAgo.setHours(23, 59, 59, 999);
+
+    await Event.update(
+      { status: 'completed' },
+      {
+        where: {
+          status: { [Op.ne]: 'completed' },
+          [Op.or]: [
+            { endDate: { [Op.lt]: oneDayAgo } },
+            { endDate: null, date: { [Op.lt]: oneDayAgo } },
+          ],
+        },
+      }
+    );
+
     const totalUsers = await User.count();
     const totalVolunteers = await User.count({ where: { role: 'user' } });
     const totalOrganizations = await User.count({ where: { role: 'organization' } });

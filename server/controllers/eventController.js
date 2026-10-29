@@ -421,6 +421,24 @@ const addEventReview = async (req, res, next) => {
 // @access  Public
 const getPublicStats = async (req, res, next) => {
   try {
+    // Automatically mark events as completed if their date is past (>= 1 day old)
+    const oneDayAgo = new Date();
+    oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+    oneDayAgo.setHours(23, 59, 59, 999);
+
+    await Event.update(
+      { status: 'completed' },
+      {
+        where: {
+          status: { [Op.ne]: 'completed' },
+          [Op.or]: [
+            { endDate: { [Op.lt]: oneDayAgo } },
+            { endDate: null, date: { [Op.lt]: oneDayAgo } },
+          ],
+        },
+      }
+    );
+
     const activeVolunteers = await User.count({ where: { role: 'user', isActive: true, isBanned: false } });
     const verifiedNGOs = await User.count({ where: { role: 'organization', isActive: true, isBanned: false } });
     const completedDrives = await Event.count({ where: { status: 'completed' } });

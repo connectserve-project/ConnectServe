@@ -5,12 +5,15 @@
  * @returns {Array} - Newly unlocked badges
  */
 const evaluateBadges = (user, event = null) => {
-  const currentBadges = new Set((user.badges || []).map(b => b.name));
+  // Work on a copy: Sequelize does not notice in-place changes (push) to JSON columns,
+  // so the badges were never actually saved to the database.
+  const allBadges = Array.isArray(user.badges) ? [...user.badges] : [];
+  const currentBadges = new Set(allBadges.map(b => b.name));
   const newBadges = [];
 
   const addBadgeIfMissing = (badge) => {
     if (!currentBadges.has(badge.name)) {
-      user.badges.push(badge);
+      allBadges.push(badge);
       currentBadges.add(badge.name);
       newBadges.push(badge);
     }
@@ -95,6 +98,11 @@ const evaluateBadges = (user, event = null) => {
         description: 'Helped distribute meals and fight hunger in the community.',
       });
     }
+  }
+
+  if (newBadges.length > 0) {
+    user.badges = allBadges;
+    user.changed('badges', true); // force Sequelize to save the JSON column
   }
 
   return newBadges;

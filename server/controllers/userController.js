@@ -2,6 +2,7 @@ const { User, Post, EventRegistration, Certificate, Notification, Event } = requ
 const { Op } = require('sequelize');
 const { uploadToCloudinary, deleteFromCloudinary } = require('../config/cloudinary');
 const { sendSuccess, sendError } = require('../utils/responseHandler');
+const { evaluateBadges } = require('../utils/badgeCalculator');
 
 const findUserByIdOrUsername = async (idOrUsername) => {
   if (typeof idOrUsername === 'number' || !isNaN(Number(idOrUsername))) {
@@ -21,6 +22,12 @@ const getProfile = async (req, res, next) => {
 
     if (!user || user.isBanned) {
       return sendError(res, 'User profile not found.', 404);
+    }
+
+    // Award any missing hour-based badges (fixes existing volunteers)
+    if (user.role === 'user') {
+      const addedBadges = evaluateBadges(user, null);
+      if (addedBadges.length > 0) await user.save();
     }
 
     // If this profile belongs to an organizer (whether organization or user),
@@ -379,7 +386,7 @@ const searchUsers = async (req, res, next) => {
 
     const { count: total, rows: users } = await User.findAndCountAll({
       where,
-      attributes: ['id', 'name', 'username', 'avatar', 'banner', 'role', 'bio', 'location', 'skills', 'orgDetails', 'volunteerHours', 'badges'],
+      attributes: ['id', 'name', 'username', 'avatar', 'role', 'bio', 'location', 'skills', 'orgDetails', 'volunteerHours', 'badges'],
       offset,
       limit: parsedLimit,
       order: [['volunteerHours', 'DESC']],

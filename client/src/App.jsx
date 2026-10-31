@@ -7,6 +7,7 @@ import { SocketProvider } from './context/SocketContext';
 import { Toaster } from 'react-hot-toast';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { ProtectedRoute } from './components/common/ProtectedRoute';
+import { SiteNoticeModal } from './components/common/SiteNoticeModal';
 
 import { Navbar } from './components/layout/Navbar';
 import { Sidebar } from './components/layout/Sidebar';
@@ -96,6 +97,7 @@ export default function App() {
         <AuthProvider>
           <SocketProvider>
             <Router>
+              <SiteNoticeModal />
               <Toaster
                 position="top-right"
                 toastOptions={{

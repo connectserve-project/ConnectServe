@@ -164,13 +164,6 @@ export const Feed = ({ onOpenCreatePost }) => {
                 <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto mt-1">
                   You're not following anyone yet — follow Volunteers or Organisations to see their posts here.
                 </p>
-                <div className="mt-4 flex justify-center">
-                  <Link to="/leaderboard">
-                    <Button variant="primary" size="sm" icon={Users}>
-                      Discover Volunteers
-                    </Button>
-                  </Link>
-                </div>
               </div>
             ) : (
               <div>
